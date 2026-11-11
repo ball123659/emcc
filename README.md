@@ -36,7 +36,7 @@ php artisan db:seed          # รันซ้ำได้ ไม่ทับข
 php artisan serve
 ```
 
-แล้วเข้า http://localhost:8000/backend ด้วย `developer` / `passwordemcc` (ระบบจะบังคับเปลี่ยนรหัสเมื่อทำลำดับงานข้อ 2 เสร็จ) — **แก้ email ของบัญชีนี้ก่อนใช้งานจริง**
+แล้วเข้า http://localhost:8000/backend ด้วย `developer` / `passwordemcc` (ล็อกอินครั้งแรกระบบจะบังคับตั้งรหัสใหม่) — **แก้ email ของบัญชีนี้ก่อนใช้งานจริง**
 
 ## ทดสอบ
 
@@ -54,6 +54,15 @@ php artisan test
 - ตาราง `map_*` เป็นของระบบแผนที่ (dev อีกคน) ไม่อยู่ใน migrations ชุดนี้
 - สิทธิ์รายหน้า: trigger ใน MySQL สร้างแถว `can_view = 0` ให้อัตโนมัติ และ Model `User` / `Page` ทำซ้ำในโค้ดด้วย
   (กรณีเซิร์ฟเวอร์สร้าง trigger ไม่ได้)
+
+## ผู้ใช้งานและสิทธิ์
+
+- บทบาท `developer` / `administrator` เข้าได้ทุกหน้าและจัดการผู้ใช้ได้, `user` เห็นเฉพาะหน้าที่ติ๊กให้ (`user_page_permissions.can_view`)
+- administrator แก้/ลบ developer และตั้งใครเป็น developer ไม่ได้; ห้ามลบ/ปิด/เปลี่ยนบทบาทบัญชีตัวเอง; ลบแบบกู้คืนได้
+- ผู้ใช้ใหม่และผู้ที่ถูกรีเซ็ตได้รหัส `passwordemcc` และต้องตั้งรหัสใหม่ (≥ 6 ตัว, ห้ามซ้ำรหัสเริ่มต้น) ก่อนใช้เมนูอื่น
+- ใส่รหัสผิด 5 ครั้งล็อก 15 นาที (ผู้ดูแลกด "ปลดล็อก" หรือ "รีเซ็ตรหัสผ่าน" ได้) — ตั้งค่าได้ใน `config/emcc.php`
+- หน้า Resource ใหม่ให้ใช้ trait `App\Filament\Concerns\ChecksPagePermission` พร้อม `$pageCode` ตาม `pages.code`
+- บันทึกการใช้งาน: login / login_failed / logout / create / update / delete / restore / password_change / password_reset / unlock / permission_update (ไม่เก็บรหัสผ่าน)
 
 ## งานตั้งเวลา
 
