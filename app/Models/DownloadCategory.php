@@ -32,7 +32,16 @@ class DownloadCategory extends Model
         });
 
         static::saving(function (DownloadCategory $category): void {
-            $category->slug = Str::slug((string) ($category->slug ?: $category->name_en ?: Str::ascii((string) $category->name_th))) ?: Str::lower(Str::random(6));
+            $base = Str::slug((string) ($category->slug ?: $category->name_en ?: Str::ascii((string) $category->name_th))) ?: Str::lower(Str::random(6));
+            $slug = $base;
+            $i = 2;
+
+            // slug ห้ามซ้ำ (ตาราง unique) — ชื่ออังกฤษซ้ำกันให้เติมเลขต่อท้าย
+            while (static::query()->where('slug', $slug)->when($category->exists, fn ($q) => $q->whereKeyNot($category->getKey()))->exists()) {
+                $slug = $base.'-'.$i++;
+            }
+
+            $category->slug = $slug;
         });
     }
 

@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -94,6 +95,13 @@ class News extends Model
 
     protected static function booted(): void
     {
+        static::created(function (News $news): void {
+            if ($news->hasTemporarySlug()) {
+                $news->slug = static::uniqueSlug(($news->published_at ?? now())->format('Y-m').'-'.$news->getKey(), $news);
+                $news->saveQuietly();
+            }
+        });
+
         static::saving(function (News $news): void {
             // วันที่เผยแพร่เป็นระดับวัน (เวลา 00:00) — เผยแพร่โดยไม่ระบุวัน = วันนี้
             if ($news->status === self::STATUS_PUBLISHED && $news->published_at === null) {
@@ -106,6 +114,10 @@ class News extends Model
 
             if (blank($news->slug)) {
                 $news->slug = static::generateSlug($news);
+            }
+
+            if ($news->isSlugLocked() && $news->isDirty('slug')) {
+                $news->slug = $news->getOriginal('slug');
             }
 
             // รูปปกย่อ (_thumb.webp) ถูกสร้างคู่กับรูปปกโดย ImageProcessor
@@ -132,14 +144,27 @@ class News extends Model
         return Attribute::set(fn (?string $value) => blank($value) ? null : Str::slug(trim($value)));
     }
 
-    /** slug: ปี-เดือน-ชื่อภาษาอังกฤษ (ถ้าไม่มีใช้รหัสสุ่ม) และไม่ซ้ำ (รวมข่าวที่ถูกลบ) */
+    /**
+     * slug: ปี-เดือน-ชื่อภาษาอังกฤษ เช่น 2026-11-pm25-report
+     * ไม่มีชื่ออังกฤษ (แปลงอักษรไทยเป็น URL ไม่ได้) -> ปี-เดือน-เลขข่าว เช่น 2026-11-15 (เติมหลังบันทึกเพราะต้องรู้ id)
+     * ไม่ซ้ำ (รวมข่าวที่ถูกลบ)
+     */
     public static function generateSlug(News $news): string
     {
         $date = ($news->published_at ?? now())->format('Y-m');
         $words = Str::slug(Str::words((string) ($news->title_en ?: Str::ascii((string) $news->title_th)), 8, ''));
-        $base = $date.'-'.($words !== '' && strlen($words) >= 3 ? Str::limit($words, 120, '') : Str::lower(Str::random(6)));
-        $base = trim($base, '-');
 
+        if ($words === '' || strlen($words) < 3) {
+            $base = $news->exists ? "{$date}-{$news->getKey()}" : "{$date}-tmp-".Str::lower(Str::random(10));
+        } else {
+            $base = trim($date.'-'.Str::limit($words, 120, ''), '-');
+        }
+
+        return static::uniqueSlug($base, $news);
+    }
+
+    private static function uniqueSlug(string $base, News $news): string
+    {
         $slug = $base;
         $i = 2;
 
@@ -148,6 +173,20 @@ class News extends Model
         }
 
         return $slug;
+    }
+
+    /** slug ชั่วคราวของข่าวชื่อไทยล้วน (ถูกแทนด้วย ปี-เดือน-เลขข่าว ทันทีหลังสร้าง) */
+    public function hasTemporarySlug(): bool
+    {
+        return (bool) preg_match('/^\d{4}-\d{2}-tmp-[a-z0-9]{10}$/', (string) $this->slug);
+    }
+
+    /** ข่าวที่เผยแพร่แล้วห้ามเปลี่ยน slug เพื่อไม่ให้ลิงก์ที่แชร์ไปแล้วเสีย */
+    public function isSlugLocked(): bool
+    {
+        return $this->exists && $this->getOriginal('status') === self::STATUS_PUBLISHED
+            && $this->getOriginal('published_at') !== null
+            && ! Carbon::parse($this->getOriginal('published_at'))->isFuture();
     }
 
     public function getRouteKeyName(): string

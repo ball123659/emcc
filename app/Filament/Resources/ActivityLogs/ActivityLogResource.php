@@ -66,7 +66,7 @@ class ActivityLogResource extends Resource
             ->columns([
                 TextColumn::make('created_at')
                     ->label('วันเวลา')
-                    ->dateTime('d/m/Y H:i:s')
+                    ->dateTime()
                     ->sortable(),
                 TextColumn::make('user.username')
                     ->label('ผู้ใช้')
@@ -103,8 +103,8 @@ class ActivityLogResource extends Resource
                     ->searchable(),
                 Filter::make('created_at')
                     ->schema([
-                        DatePicker::make('from')->label('ตั้งแต่วันที่')->native(false)->displayFormat('d/m/Y'),
-                        DatePicker::make('until')->label('ถึงวันที่')->native(false)->displayFormat('d/m/Y')
+                        DatePicker::make('from')->label('ตั้งแต่วันที่')->native(false),
+                        DatePicker::make('until')->label('ถึงวันที่')->native(false)
                             ->afterOrEqual('from')
                             ->validationMessages(['after_or_equal' => 'วันสิ้นสุดต้องไม่ก่อนวันเริ่ม']),
                     ])
@@ -120,7 +120,7 @@ class ActivityLogResource extends Resource
     public static function infolist(Schema $schema): Schema
     {
         return $schema->columns(2)->components([
-            TextEntry::make('created_at')->label('วันเวลา')->dateTime('d/m/Y H:i:s'),
+            TextEntry::make('created_at')->label('วันเวลา')->dateTime(),
             TextEntry::make('user.username')->label('ผู้ใช้')->placeholder('-'),
             TextEntry::make('action')->label('การกระทำ')->formatStateUsing(fn (string $state) => self::ACTIONS[$state] ?? $state),
             TextEntry::make('subject_type')->label('ข้อมูล')

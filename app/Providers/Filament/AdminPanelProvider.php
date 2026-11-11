@@ -7,6 +7,7 @@ use App\Filament\Auth\Login;
 use App\Filament\Pages\Dashboard;
 use App\Filament\Support\InitialsAvatarProvider;
 use App\Http\Middleware\EnsurePasswordIsChanged;
+use Filament\FontProviders\LocalFontProvider;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -14,6 +15,7 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -34,6 +36,7 @@ class AdminPanelProvider extends PanelProvider
             ->profile(EditProfile::class, isSimple: false)
             ->revealablePasswords()
             ->defaultAvatarProvider(InitialsAvatarProvider::class)
+            ->renderHook(PanelsRenderHook::BODY_END, fn (): string => view('filament.filepond-thai')->render())
             ->navigationGroups([
                 'จัดการ Highlight',
                 'ข่าวประชาสัมพันธ์',
@@ -42,7 +45,8 @@ class AdminPanelProvider extends PanelProvider
                 'ผู้ดูแลระบบ',
             ])
             ->brandName('EMCC หลังบ้าน')
-            ->font('Prompt')
+            ->font('Prompt', url: asset('fonts/prompt/prompt.css'), provider: LocalFontProvider::class)
+            ->favicon(asset('favicon.svg'))
             ->colors([
                 'primary' => Color::hex('#704a9f'),
                 'success' => Color::hex('#0e975f'),

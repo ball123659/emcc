@@ -1,0 +1,63 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: secret
+          MYSQL_DATABASE: emcc_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -psecret"
+          --health-interval=10s --health-timeout=5s --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: gd, intl, fileinfo, pdo_mysql, mbstring, zip, exif
+          coverage: none
+
+      - run: composer install --no-interaction --prefer-dist --no-progress
+
+      - run: cp .env.example .env && php artisan key:generate
+
+      - name: Code style
+        run: vendor/bin/pint --test
+
+      # ทดสอบกับ MySQL จริง (CHECK constraint, trigger, FULLTEXT ตรงกับ database/webemcc.sql)
+      - name: Tests (MySQL)
+        run: php artisan test
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: emcc_test
+          DB_USERNAME: root
+          DB_PASSWORD: secret
+
+      # migrations ต้องสร้างโครงสร้างเหมือน database/webemcc.sql ทุกตาราง
+      - name: Schema matches webemcc.sql
+        env:
+          MYSQL_PWD: secret
+        run: |
+          sed 's/`webemcc`/`emcc_sql`/g' database/webemcc.sql | mysql -h 127.0.0.1 -uroot
+          mysql -h 127.0.0.1 -uroot -e "CREATE DATABASE emcc_mig CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci"
+          DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_DATABASE=emcc_mig DB_USERNAME=root DB_PASSWORD=secret php artisan migrate --force
+          for t in users pages user_page_permissions slides popups news_categories news news_images news_attachments download_categories downloads site_settings activity_logs; do
+            for db in emcc_sql emcc_mig; do
+              mysql -h 127.0.0.1 -uroot -N -e "SHOW CREATE TABLE \`$db\`.\`$t\`" | cut -f2 | sed -e 's/ AUTO_INCREMENT=[0-9]*//' > "$db.$t.sql"
+            done
+            diff -u "emcc_sql.$t.sql" "emcc_mig.$t.sql"
+          done

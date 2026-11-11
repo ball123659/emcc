@@ -78,7 +78,6 @@ class HighlightFormComponents
         return DatePicker::make('start_date')
             ->label('วันเริ่มแสดง')
             ->native(false)
-            ->displayFormat('d/m/Y')
             ->closeOnDateSelection()
             ->required($required)
             ->live()
@@ -91,7 +90,6 @@ class HighlightFormComponents
         return DatePicker::make('end_date')
             ->label('วันสิ้นสุด')
             ->native(false)
-            ->displayFormat('d/m/Y')
             ->closeOnDateSelection()
             ->required($required)
             ->minDate(fn (Get $get) => $get('start_date'))
@@ -118,8 +116,8 @@ class HighlightFormComponents
         return TextColumn::make('start_date')
             ->label('ช่วงวันที่แสดง')
             ->state(function (Model $record): string {
-                $start = $record->start_date?->format('d/m/Y') ?? 'ทันที';
-                $end = $record->end_date?->format('d/m/Y') ?? 'ไม่มีกำหนด';
+                $start = $record->start_date?->format(config('emcc.date_format')) ?? 'ทันที';
+                $end = $record->end_date?->format(config('emcc.date_format')) ?? 'ไม่มีกำหนด';
 
                 return "{$start} – {$end}";
             });

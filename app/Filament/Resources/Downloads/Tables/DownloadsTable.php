@@ -55,7 +55,7 @@ class DownloadsTable
                     ->sortable(),
                 ToggleColumn::make('is_active')
                     ->label('เปิดแสดง')
-                    ->disabled(fn (Download $record) => $record->trashed()),
+                    ->disabled(fn (Download $record) => $record->trashed() || ! auth()->user()->can('update', $record)),
             ])
             ->filters([
                 SelectFilter::make('category_id')

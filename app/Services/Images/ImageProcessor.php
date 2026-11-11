@@ -50,6 +50,8 @@ class ImageProcessor
             throw new ImageRejectedException('รูปมีความละเอียดสูงเกินไป กรุณาย่อรูปให้ด้านยาวไม่เกิน 6000 px');
         }
 
+        $this->ensureResources($info[0], $info[1]);
+
         $scan = $this->scanner->scan($path);
 
         if ($scan === ScanResult::Infected) {
@@ -80,6 +82,44 @@ class ImageProcessor
         }
 
         return new StoredImage($mainPath, $thumbPath, $width, $height, $size);
+    }
+
+    /**
+     * เตรียมหน่วยความจำ/เวลาให้พอสำหรับรูปขนาดใหญ่
+     * (PHP บน Windows นับหน่วยความจำของ GD เข้า memory_limit — รูปกล้อง 24 ล้านพิกเซลใช้ ~100 MB ต่อสำเนา)
+     */
+    private function ensureResources(int $width, int $height): void
+    {
+        @set_time_limit(120);
+
+        $needed = (int) ($width * $height * 5 * 2.2) + 64 * 1024 * 1024;
+        $current = self::iniBytes((string) ini_get('memory_limit'));
+
+        if ($current !== -1 && $current < $needed) {
+            $cap = 1024 * 1024 * 1024;
+
+            if ($needed > $cap || @ini_set('memory_limit', (string) $needed) === false) {
+                throw new ImageRejectedException('รูปมีความละเอียดสูงเกินกว่าที่เซิร์ฟเวอร์ประมวลผลได้ กรุณาย่อรูปให้ด้านยาวไม่เกิน 4000 px แล้วอัปโหลดใหม่');
+            }
+        }
+    }
+
+    public static function iniBytes(string $value): int
+    {
+        $value = trim($value);
+
+        if ($value === '' || $value === '-1') {
+            return -1;
+        }
+
+        $number = (int) $value;
+
+        return match (strtolower(substr($value, -1))) {
+            'g' => $number * 1024 ** 3,
+            'm' => $number * 1024 ** 2,
+            'k' => $number * 1024,
+            default => $number,
+        };
     }
 
     private function load(string $path, string $mime): GdImage
@@ -114,10 +154,15 @@ class ImageProcessor
 
         $orientation = (int) (@exif_read_data($path)['Orientation'] ?? 1);
 
+        // 2,4,5,7 = ภาพกลับด้าน (กล้องหน้า/มือถือบางรุ่น)
+        if (in_array($orientation, [2, 4, 5, 7], true)) {
+            imageflip($image, $orientation === 4 ? IMG_FLIP_VERTICAL : IMG_FLIP_HORIZONTAL);
+        }
+
         $rotated = match ($orientation) {
             3 => imagerotate($image, 180, 0),
-            6 => imagerotate($image, -90, 0),
-            8 => imagerotate($image, 90, 0),
+            6, 5 => imagerotate($image, -90, 0),
+            8, 7 => imagerotate($image, 90, 0),
             default => $image,
         };
 

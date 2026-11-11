@@ -41,6 +41,8 @@ return [
         'web' => [
             'driver' => 'session',
             'provider' => 'users',
+            // "จดจำฉัน" อยู่ได้ 30 วัน (ค่าเริ่มต้นของ Laravel 400 วัน) — เปลี่ยนรหัส/ปิดบัญชี ระบบออกจากทุกเครื่องทันที
+            'remember' => (int) env('AUTH_REMEMBER_MINUTES', 60 * 24 * 30),
         ],
     ],
 

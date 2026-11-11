@@ -49,6 +49,20 @@ class CheckEnvironment extends Command
             'ตั้ง post_max_size ให้มากกว่า upload_max_filesize ไม่งั้นฟอร์มที่แนบไฟล์ขนาดเต็มจะส่งไม่ผ่าน',
         );
 
+        $memory = (string) ini_get('memory_limit');
+        $this->check(
+            "memory_limit ≥ 256M (ตอนนี้ {$memory})",
+            $memory === '-1' || $this->bytes($memory) >= 256 * 1024 * 1024,
+            'ตั้ง memory_limit = 256M ใน php.ini (ประมวลผลรูปจากกล้องความละเอียดสูง)',
+        );
+
+        $time = (int) ini_get('max_execution_time');
+        $this->check(
+            "max_execution_time ≥ 60 หรือ 0 (ตอนนี้ {$time})",
+            $time === 0 || $time >= 60,
+            'ตั้ง max_execution_time = 120 ใน php.ini (IIS: ตั้ง activityTimeout/requestTimeout ของ FastCGI ให้มากกว่านี้ด้วย)',
+        );
+
         // extension
         foreach (['gd', 'fileinfo', 'pdo_mysql', 'mbstring', 'intl', 'exif'] as $ext) {
             $this->check("extension {$ext}", extension_loaded($ext), "เปิด extension={$ext} ใน php.ini");

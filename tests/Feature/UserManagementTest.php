@@ -76,7 +76,8 @@ class UserManagementTest extends TestCase
         Livewire::test(Login::class)->set('data.username', 'staff')->set('data.password', 'secret123')->call('authenticate');
 
         $this->assertSame(['login_failed', 'login_failed', 'login'], ActivityLog::whereIn('action', ['login', 'login_failed'])->orderBy('id')->pluck('action')->all());
-        $this->assertNull(ActivityLog::where('description', 'like', '%nobody%')->value('user_id'));
+        $this->assertNull(ActivityLog::where('description', 'like', '%no***%')->value('user_id'));
+        $this->assertFalse(ActivityLog::where('description', 'like', '%nobody%')->exists());
 
         $all = ActivityLog::all()->toJson();
         $this->assertStringNotContainsString('secret123', $all);

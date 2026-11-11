@@ -7,7 +7,7 @@ use Symfony\Component\HtmlSanitizer\HtmlSanitizerConfig;
 
 /**
  * กรอง HTML จาก rich text (กัน XSS) — อนุญาตเฉพาะแท็ก/แอตทริบิวต์ใน allowlist
- * ลิงก์รับเฉพาะ http / https / mailto และลิงก์ที่เปิดแท็บใหม่ได้ rel="noopener noreferrer"
+ * ลิงก์รับเฉพาะ http / https / mailto และลิงก์ภายในเว็บ (/path) — ใส่ rel="noopener noreferrer" ทุกลิงก์
  */
 class HtmlSanitizer
 {
@@ -30,7 +30,7 @@ class HtmlSanitizer
 
         $config = (new HtmlSanitizerConfig)
             ->allowLinkSchemes(['http', 'https', 'mailto'])
-            ->allowRelativeLinks(false)
+            ->allowRelativeLinks(true) // ลิงก์ภายในเว็บ เช่น /downloads/5
             ->allowMediaSchemes([])
             ->forceAttribute('a', 'rel', 'noopener noreferrer')
             ->withMaxInputLength(2_000_000);

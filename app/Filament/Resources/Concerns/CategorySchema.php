@@ -62,7 +62,8 @@ class CategorySchema
                     ->counts([$countRelation => fn ($query) => $query->withTrashed()])
                     ->badge()
                     ->color('gray'),
-                ToggleColumn::make('is_active')->label('เปิดใช้งาน'),
+                ToggleColumn::make('is_active')->label('เปิดใช้งาน')
+                    ->disabled(fn (Model $record) => ! auth()->user()->can('update', $record)),
             ])
             ->recordActions([
                 EditAction::make(),

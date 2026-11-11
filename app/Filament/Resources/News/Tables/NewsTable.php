@@ -48,7 +48,7 @@ class NewsTable
                     ->color(fn (News $record) => $record->trashed() ? 'danger' : News::DISPLAY_COLORS[$record->displayStatus()]),
                 TextColumn::make('published_at')
                     ->label('วันที่เผยแพร่')
-                    ->date('d/m/Y')
+                    ->date()
                     ->placeholder('-')
                     ->sortable(),
                 TextColumn::make('view_count')
