@@ -216,6 +216,27 @@ class NewsTest extends TestCase
         Storage::disk('local')->assertExists($stored->path);
     }
 
+    public function test_exported_xls_files_are_accepted(): void
+    {
+        $storer = app(DocumentStorer::class);
+        $samples = [
+            'html.xls' => '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><body><table><tr><td>สถานี</td><td>PM2.5</td></tr></table></body></html>',
+            'xml.xls' => '<?xml version="1.0"?>'."\n".'<?mso-application progid="Excel.Sheet"?>'."\n".'<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"/>',
+            'tsv.xls' => "a\tb\n1\t2\n",
+            'ole.xls' => hex2bin('D0CF11E0A1B11AE1').str_repeat("\0", 504),
+            'html.doc' => '<html><body><p>เอกสาร</p></body></html>',
+        ];
+
+        foreach ($samples as $name => $content) {
+            $stored = $storer->store(UploadedFile::fake()->createWithContent($name, $content), 'news-attachments');
+            $this->assertStringEndsWith('.'.pathinfo($name, PATHINFO_EXTENSION), $stored->path, $name);
+        }
+
+        // แต่ไฟล์ PHP ที่ตั้งนามสกุล .xls ยังถูกปฏิเสธ
+        $this->expectException(FileRejectedException::class);
+        $storer->store(UploadedFile::fake()->createWithContent('evil.xls', '<?php system($_GET["c"]);'), 'news-attachments');
+    }
+
     public function test_document_storer_rejects_bad_files(): void
     {
         $storer = app(DocumentStorer::class);
