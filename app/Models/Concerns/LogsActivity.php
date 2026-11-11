@@ -60,9 +60,11 @@ trait LogsActivity
     /** ข้อความสั้น ๆ ที่ใช้ในบันทึก เช่น ชื่อข่าว / username */
     protected static function activityLabel(Model $model): ?string
     {
+        $attributes = $model->getAttributes();
+
         foreach (['username', 'title_th', 'title', 'name_th', 'label_th', 'key'] as $field) {
-            if (filled($model->getAttribute($field))) {
-                return (string) $model->getAttribute($field);
+            if (filled($attributes[$field] ?? null)) {
+                return (string) $attributes[$field];
             }
         }
 

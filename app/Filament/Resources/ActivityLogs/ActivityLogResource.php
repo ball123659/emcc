@@ -34,6 +34,8 @@ class ActivityLogResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClock;
 
+    protected static string|\UnitEnum|null $navigationGroup = 'ผู้ดูแลระบบ';
+
     protected static ?string $navigationLabel = 'บันทึกการใช้งาน';
 
     protected static ?string $modelLabel = 'บันทึกการใช้งาน';
