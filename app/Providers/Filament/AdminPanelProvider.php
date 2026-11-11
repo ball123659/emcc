@@ -26,7 +26,7 @@ class AdminPanelProvider extends PanelProvider
         return $panel
             ->default()
             ->id('admin')
-            ->path('admin')
+            ->path('backend')
             ->login(Login::class)
             ->brandName('EMCC หลังบ้าน')
             ->font('Prompt')
