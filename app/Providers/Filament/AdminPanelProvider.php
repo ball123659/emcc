@@ -36,6 +36,7 @@ class AdminPanelProvider extends PanelProvider
             ->defaultAvatarProvider(InitialsAvatarProvider::class)
             ->navigationGroups([
                 'จัดการ Highlight',
+                'ข่าวประชาสัมพันธ์',
                 'ผู้ดูแลระบบ',
             ])
             ->brandName('EMCC หลังบ้าน')

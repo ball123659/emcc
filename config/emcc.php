@@ -34,6 +34,13 @@ return [
     'php_upload_max_mb' => 20,
     'php_post_max_mb' => 30,
 
+    /*
+    | ไฟล์เอกสาร/สื่อ (ไฟล์แนบข่าว, ไฟล์ดาวน์โหลด) — ต้องไม่เกิน upload_max_filesize ของ PHP
+    */
+    'files' => [
+        'max_upload_kb' => 20480,
+    ],
+
     'images' => [
         'max_upload_kb' => 10240,
         'max_dimension' => 1920,

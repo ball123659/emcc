@@ -3,26 +3,59 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasBilingualFields;
+use App\Models\Concerns\HasImageFiles;
 use App\Models\Concerns\LogsActivity;
 use App\Models\Concerns\TracksUser;
+use App\Services\Html\HtmlSanitizer;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * ข่าวประชาสัมพันธ์
+ * - เนื้อหา rich text ถูกกรอง HTML (allowlist) ทุกครั้งที่บันทึก
+ * - slug สร้างอัตโนมัติถ้าเว้นว่าง
+ * - status = published + published_at ในอนาคต = ตั้งเวลาเผยแพร่
  */
 class News extends Model
 {
-    use HasBilingualFields, LogsActivity, SoftDeletes, TracksUser;
+    use HasBilingualFields, HasImageFiles, LogsActivity, SoftDeletes, TracksUser;
 
     public const STATUS_DRAFT = 'draft';
 
     public const STATUS_PUBLISHED = 'published';
 
     public const STATUS_HIDDEN = 'hidden';
+
+    public const STATUSES = [
+        self::STATUS_DRAFT => 'ร่าง',
+        self::STATUS_PUBLISHED => 'เผยแพร่',
+        self::STATUS_HIDDEN => 'ซ่อน',
+    ];
+
+    /** สถานะที่แสดงในหลังบ้าน (เพิ่ม "ตั้งเวลาเผยแพร่") */
+    public const DISPLAY_SCHEDULED = 'scheduled';
+
+    public const DISPLAY_LABELS = [
+        self::STATUS_DRAFT => 'ร่าง',
+        self::STATUS_PUBLISHED => 'เผยแพร่แล้ว',
+        self::DISPLAY_SCHEDULED => 'ตั้งเวลาเผยแพร่',
+        self::STATUS_HIDDEN => 'ซ่อน',
+    ];
+
+    public const DISPLAY_COLORS = [
+        self::STATUS_DRAFT => 'gray',
+        self::STATUS_PUBLISHED => 'success',
+        self::DISPLAY_SCHEDULED => 'info',
+        self::STATUS_HIDDEN => 'warning',
+    ];
+
+    protected static array $imageFields = ['cover_image'];
 
     protected $table = 'news';
 
@@ -59,10 +92,65 @@ class News extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::saving(function (News $news): void {
+            if ($news->status === self::STATUS_PUBLISHED && $news->published_at === null) {
+                $news->published_at = now();
+            }
+
+            if (blank($news->slug)) {
+                $news->slug = static::generateSlug($news);
+            }
+
+            // รูปปกย่อ (_thumb.webp) ถูกสร้างคู่กับรูปปกโดย ImageProcessor
+            if ($news->isDirty('cover_image')) {
+                $news->cover_thumb = $news->cover_image ? static::thumbnailPathFor($news->cover_image) : null;
+            }
+        });
+    }
+
+    // ---------- เนื้อหา: กรอง HTML ก่อนเก็บเสมอ ----------
+
+    protected function contentTh(): Attribute
+    {
+        return Attribute::set(fn (?string $value) => HtmlSanitizer::clean($value) ?? '');
+    }
+
+    protected function contentEn(): Attribute
+    {
+        return Attribute::set(fn (?string $value) => blank(strip_tags((string) $value)) ? null : HtmlSanitizer::clean($value));
+    }
+
+    protected function slug(): Attribute
+    {
+        return Attribute::set(fn (?string $value) => blank($value) ? null : Str::slug(trim($value)));
+    }
+
+    /** slug: ปี-เดือน-ชื่อภาษาอังกฤษ (ถ้าไม่มีใช้รหัสสุ่ม) และไม่ซ้ำ (รวมข่าวที่ถูกลบ) */
+    public static function generateSlug(News $news): string
+    {
+        $date = ($news->published_at ?? now())->format('Y-m');
+        $words = Str::slug(Str::words((string) ($news->title_en ?: Str::ascii((string) $news->title_th)), 8, ''));
+        $base = $date.'-'.($words !== '' && strlen($words) >= 3 ? Str::limit($words, 120, '') : Str::lower(Str::random(6)));
+        $base = trim($base, '-');
+
+        $slug = $base;
+        $i = 2;
+
+        while (static::withTrashed()->where('slug', $slug)->when($news->exists, fn ($q) => $q->whereKeyNot($news->getKey()))->exists()) {
+            $slug = $base.'-'.$i++;
+        }
+
+        return $slug;
+    }
+
     public function getRouteKeyName(): string
     {
         return 'slug';
     }
+
+    // ---------- ความสัมพันธ์ ----------
 
     public function category(): BelongsTo
     {
@@ -77,6 +165,32 @@ class News extends Model
     public function attachments(): HasMany
     {
         return $this->hasMany(NewsAttachment::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    // ---------- การแสดงผล ----------
+
+    public function displayStatus(): string
+    {
+        if ($this->status === self::STATUS_PUBLISHED && $this->published_at?->isFuture()) {
+            return self::DISPLAY_SCHEDULED;
+        }
+
+        return $this->status;
+    }
+
+    public function isPubliclyVisible(): bool
+    {
+        return ! $this->trashed()
+            && $this->status === self::STATUS_PUBLISHED
+            && $this->published_at !== null
+            && ! $this->published_at->isFuture();
+    }
+
+    /** เพิ่มยอดเข้าชม (ไม่แตะ updated_at / ไม่ลง activity log) */
+    public function recordView(): void
+    {
+        static::withoutTimestamps(fn () => static::query()->whereKey($this->getKey())->update(['view_count' => DB::raw('view_count + 1')]));
+        $this->view_count++;
     }
 
     /** ข่าวที่เผยแพร่แล้ว (ถึงเวลาเผยแพร่) ปักหมุดขึ้นก่อน */
