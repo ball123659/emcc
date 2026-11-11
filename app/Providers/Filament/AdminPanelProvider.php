@@ -34,6 +34,10 @@ class AdminPanelProvider extends PanelProvider
             ->profile(EditProfile::class, isSimple: false)
             ->revealablePasswords()
             ->defaultAvatarProvider(InitialsAvatarProvider::class)
+            ->navigationGroups([
+                'จัดการ Highlight',
+                'ผู้ดูแลระบบ',
+            ])
             ->brandName('EMCC หลังบ้าน')
             ->font('Prompt')
             ->colors([

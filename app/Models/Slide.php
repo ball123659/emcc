@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasBilingualFields;
+use App\Models\Concerns\HasDisplayWindow;
+use App\Models\Concerns\HasImageFiles;
 use App\Models\Concerns\LogsActivity;
 use App\Models\Concerns\TracksUser;
 use Illuminate\Database\Eloquent\Builder;
@@ -15,13 +17,15 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class Slide extends Model
 {
-    use HasBilingualFields, LogsActivity, SoftDeletes, TracksUser;
+    use HasBilingualFields, HasDisplayWindow, HasImageFiles, LogsActivity, SoftDeletes, TracksUser;
 
     public const LINK_NONE = 'none';
 
     public const LINK_NEWS = 'news';
 
     public const LINK_URL = 'url';
+
+    protected static array $imageFields = ['image_th', 'image_en', 'image_mobile'];
 
     protected $fillable = [
         'title',
@@ -44,7 +48,6 @@ class Slide extends Model
         'link_type' => self::LINK_NONE,
         'open_new_tab' => true,
         'is_active' => true,
-        'sort_order' => 0,
     ];
 
     protected function casts(): array

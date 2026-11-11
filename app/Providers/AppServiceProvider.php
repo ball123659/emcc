@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Services\VirusScan\VirusScanner;
+use App\Services\VirusScan\VirusScannerFactory;
 use App\Support\ActivityLogger;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Database\Eloquent\Model;
@@ -13,7 +15,7 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        $this->app->bind(VirusScanner::class, fn () => VirusScannerFactory::make());
     }
 
     public function boot(): void
