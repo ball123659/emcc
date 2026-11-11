@@ -362,31 +362,14 @@ ALTER TABLE `slides`
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- =====================================================================
---  Triggers — สร้างสิทธิ์ค่าเริ่มต้น 0 (ไม่เห็น) อัตโนมัติ
---  - เพิ่มหน้าใหม่  -> ผู้ใช้ทุกคนได้แถวสิทธิ์ของหน้านั้น = 0
---  - เพิ่มผู้ใช้ใหม่ -> ได้แถวสิทธิ์ของทุกหน้า = 0
---  หมายเหตุ: ถ้าเซิร์ฟเวอร์เปิด binary log อยู่ ผู้ที่ import อาจต้องมีสิทธิ์
---  SUPER หรือ log_bin_trust_function_creators = 1  (ถ้าสร้างไม่ได้ ระบบ Laravel
---  จะทำแทนในโค้ดได้ — แจ้ง dev)
+--  สิทธิ์รายหน้าค่าเริ่มต้น 0 (ไม่เห็น)
+--  ไม่ใช้ trigger แล้ว (MariaDB 10.4 / XAMPP crash ตอน INSERT users ใน execute_trigger)
+--  Laravel สร้างแถวสิทธิ์ในโค้ดแทน: Model User (เพิ่มผู้ใช้ -> ทุกหน้า = 0)
+--  และ Model Page (เพิ่มหน้า -> ผู้ใช้ทุกคน = 0) — ดู App\Models\UserPagePermission
+--  ถ้าเพิ่มผู้ใช้/หน้าด้วย SQL ตรง ๆ ให้รัน INSERT ... SELECT ท้ายไฟล์นี้ซ้ำ (หรือ php artisan db:seed)
 -- =====================================================================
 DROP TRIGGER IF EXISTS `trg_pages_after_insert`;
 DROP TRIGGER IF EXISTS `trg_users_after_insert`;
-
-DELIMITER $$
-CREATE TRIGGER `trg_pages_after_insert` AFTER INSERT ON `pages`
-FOR EACH ROW
-BEGIN
-  INSERT IGNORE INTO `user_page_permissions` (`user_id`, `page_id`, `can_view`, `updated_at`)
-  SELECT u.`id`, NEW.`id`, 0, NOW() FROM `users` u;
-END$$
-
-CREATE TRIGGER `trg_users_after_insert` AFTER INSERT ON `users`
-FOR EACH ROW
-BEGIN
-  INSERT IGNORE INTO `user_page_permissions` (`user_id`, `page_id`, `can_view`, `updated_at`)
-  SELECT NEW.`id`, p.`id`, 0, NOW() FROM `pages` p;
-END$$
-DELIMITER ;
 
 -- =====================================================================
 --  ข้อมูลเริ่มต้น
@@ -411,6 +394,10 @@ INSERT INTO `pages` (`id`, `code`, `parent_id`, `name_th`, `name_en`, `icon`, `s
 INSERT INTO `users` (`id`, `username`, `password`, `role`, `first_name`, `last_name`, `email`, `position`, `is_active`, `must_change_password`, `created_at`, `updated_at`) VALUES
   (1, 'developer', '$2y$12$J.4vJLKkIgbdEsHCtLcn8.zlFBgbqQUMOomq7y9f60QDVBpwMvUze', 'developer',
    'ผู้พัฒนา', 'ระบบ', 'developer@example.com', 'Developer', 1, 1, NOW(), NOW());
+
+-- แถวสิทธิ์ค่าเริ่มต้น 0 ให้ผู้ใช้ทุกคน x ทุกหน้า (แทน trigger เดิม — รันซ้ำได้)
+INSERT IGNORE INTO `user_page_permissions` (`user_id`, `page_id`, `can_view`, `updated_at`)
+SELECT u.`id`, p.`id`, 0, NOW() FROM `users` u CROSS JOIN `pages` p;
 
 -- หมวดหมู่เริ่มต้น (แก้/เพิ่มได้ในหลังบ้าน)
 INSERT INTO `news_categories` (`slug`, `name_th`, `name_en`, `sort_order`, `created_at`, `updated_at`) VALUES

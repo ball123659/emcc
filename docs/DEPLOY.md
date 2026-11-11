@@ -2,7 +2,7 @@
 
 ## สิ่งที่ต้องมี
 - PHP 8.3+ (extension: `pdo_mysql`, `mbstring`, `intl`, `fileinfo`, `gd` ที่รองรับ WebP, `zip`, `exif`, `openssl`)
-- MySQL 8.0.16+ หรือ MariaDB 10.4+ (ฐานข้อมูล `webemcc`, `utf8mb4_general_ci`)
+- MySQL 8.0.16+ หรือ MariaDB 10.4+ (ฐานข้อมูล `webemcc`, `utf8mb4_general_ci`) — ไม่ใช้ trigger (สิทธิ์รายหน้าสร้างในโค้ด)
 - Composer
 - IIS: URL Rewrite module + PHP ผ่าน FastCGI
 

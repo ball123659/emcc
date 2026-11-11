@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Models\UserPagePermission;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -33,16 +34,7 @@ class DeveloperUserSeeder extends Seeder
             'updated_at' => $now,
         ]);
 
-        // แถวสิทธิ์ค่าเริ่มต้น 0 ให้ผู้ใช้ทุกคน x ทุกหน้า (สำรองกรณีไม่มี trigger; ซ้ำได้)
-        DB::table('user_page_permissions')->insertOrIgnore(
-            DB::table('users')->crossJoin('pages')
-                ->get(['users.id as user_id', 'pages.id as page_id'])
-                ->map(fn ($row) => [
-                    'user_id' => $row->user_id,
-                    'page_id' => $row->page_id,
-                    'can_view' => false,
-                    'updated_at' => $now,
-                ])->all()
-        );
+        // insert ผ่าน query builder ไม่มี model event -> เติมแถวสิทธิ์ 0 ให้ครบ (ผู้ใช้ทุกคน x ทุกหน้า)
+        UserPagePermission::fillMissing();
     }
 }

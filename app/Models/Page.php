@@ -38,7 +38,7 @@ class Page extends Model
 
     protected static function booted(): void
     {
-        // สำรองกรณี trigger trg_pages_after_insert ใช้ไม่ได้
+        // หน้าใหม่ -> ผู้ใช้ทุกคน (รวมที่ถูกลบแบบกู้คืนได้) ได้แถวสิทธิ์ = 0 (ทำในโค้ดเท่านั้น ไม่ใช้ trigger)
         static::created(fn (Page $page) => UserPagePermission::createDefaultsForPage($page));
     }
 

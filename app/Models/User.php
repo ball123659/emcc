@@ -75,7 +75,7 @@ class User extends Authenticatable implements FilamentUser, HasName
 
     protected static function booted(): void
     {
-        // สำรองกรณี trigger trg_users_after_insert ใช้ไม่ได้ (INSERT IGNORE จึงซ้ำกับ trigger ได้)
+        // ผู้ใช้ใหม่ได้แถวสิทธิ์ของทุกหน้า = 0 (ทำในโค้ดเท่านั้น ไม่ใช้ trigger)
         static::created(fn (User $user) => UserPagePermission::createDefaultsForUser($user));
     }
 

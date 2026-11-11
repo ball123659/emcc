@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Pivot;
+use Illuminate\Support\Facades\DB;
 
 /**
  * สิทธิ์ผู้ใช้ x หน้า (PK คู่ user_id + page_id) — can_view 0 = ไม่เห็น, 1 = เห็น
@@ -27,6 +28,26 @@ class UserPagePermission extends Pivot
         return [
             'can_view' => 'boolean',
         ];
+    }
+
+    /**
+     * แถวสิทธิ์ค่าเริ่มต้น 0 สร้างในโค้ดเท่านั้น (ไม่ใช้ trigger — MariaDB 10.4 crash)
+     * - Model User::created -> createDefaultsForUser()
+     * - Model Page::created -> createDefaultsForPage()
+     * - เพิ่มข้อมูลด้วย query builder / SQL ตรง ๆ -> เรียก fillMissing()
+     */
+    public static function fillMissing(): int
+    {
+        return DB::table('user_page_permissions')->insertUsing(
+            ['user_id', 'page_id', 'can_view', 'updated_at'],
+            DB::table('users')
+                ->crossJoin('pages')
+                ->leftJoin('user_page_permissions as upp', fn ($join) => $join
+                    ->on('upp.user_id', '=', 'users.id')
+                    ->on('upp.page_id', '=', 'pages.id'))
+                ->whereNull('upp.user_id')
+                ->select(['users.id', 'pages.id', DB::raw('0'), DB::raw('CURRENT_TIMESTAMP')]),
+        );
     }
 
     /** ผู้ใช้ใหม่ -> แถวสิทธิ์ของทุกหน้า = 0 */
