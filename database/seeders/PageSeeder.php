@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\UserPagePermission;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -43,5 +44,8 @@ class PageSeeder extends Seeder
                 'updated_at' => $now,
             ]);
         }
+
+        // หน้าที่เพิ่มด้วย query builder ไม่มี model event -> ผู้ใช้ที่มีอยู่ได้แถวสิทธิ์ 0 ของหน้าใหม่
+        UserPagePermission::fillMissing();
     }
 }

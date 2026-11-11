@@ -7,14 +7,23 @@ on:
 
 jobs:
   tests:
+    name: tests (${{ matrix.database }})
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # MySQL 8 (เซิร์ฟเวอร์จริง) และ MariaDB 10.4 (XAMPP ที่ใช้พัฒนา)
+        database: ['mysql:8.0', 'mariadb:10.4']
 
     services:
       mysql:
-        image: mysql:8.0
+        image: ${{ matrix.database }}
         env:
           MYSQL_ROOT_PASSWORD: secret
           MYSQL_DATABASE: emcc_test
+          MARIADB_ROOT_PASSWORD: secret
+          MARIADB_DATABASE: emcc_test
         ports: ['3306:3306']
         options: >-
           --health-cmd="mysqladmin ping -h 127.0.0.1 -psecret"
@@ -36,8 +45,8 @@ jobs:
       - name: Code style
         run: vendor/bin/pint --test
 
-      # ทดสอบกับ MySQL จริง (CHECK constraint, trigger, FULLTEXT ตรงกับ database/webemcc.sql)
-      - name: Tests (MySQL)
+      # ทดสอบกับฐานข้อมูลจริง (CHECK constraint, FULLTEXT ตรงกับ database/webemcc.sql)
+      - name: Tests
         run: php artisan test
         env:
           DB_CONNECTION: mysql
