@@ -194,3 +194,45 @@ a.emcc-todo:hover { background: color-mix(in srgb, var(--emcc-todo-color, var(--
         background: linear-gradient(160deg, var(--emcc-purple-deep), var(--emcc-purple)) top / 100% 14rem no-repeat;
     }
 }
+
+/* ---------- แถบเลื่อนแบบบาง (เมนูข้าง / เนื้อหา) — แสดงชัดเมื่อชี้ ---------- */
+.fi-sidebar-nav,
+.fi-main-ctn,
+.fi-dropdown-panel,
+.fi-modal-window {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+}
+.fi-sidebar-nav:hover,
+.fi-main-ctn:hover,
+.fi-dropdown-panel:hover,
+.fi-modal-window:hover {
+    scrollbar-color: rgba(112, 74, 159, .35) transparent;
+}
+.fi-sidebar-nav::-webkit-scrollbar,
+.fi-main-ctn::-webkit-scrollbar,
+.fi-dropdown-panel::-webkit-scrollbar,
+.fi-modal-window::-webkit-scrollbar { width: 6px; height: 6px; }
+.fi-sidebar-nav::-webkit-scrollbar-track,
+.fi-main-ctn::-webkit-scrollbar-track,
+.fi-dropdown-panel::-webkit-scrollbar-track,
+.fi-modal-window::-webkit-scrollbar-track { background: transparent; }
+.fi-sidebar-nav::-webkit-scrollbar-thumb,
+.fi-main-ctn::-webkit-scrollbar-thumb,
+.fi-dropdown-panel::-webkit-scrollbar-thumb,
+.fi-modal-window::-webkit-scrollbar-thumb { background: transparent; border-radius: 999px; }
+.fi-sidebar-nav:hover::-webkit-scrollbar-thumb,
+.fi-main-ctn:hover::-webkit-scrollbar-thumb,
+.fi-dropdown-panel:hover::-webkit-scrollbar-thumb,
+.fi-modal-window:hover::-webkit-scrollbar-thumb { background: rgba(112, 74, 159, .35); }
+.dark .fi-sidebar-nav:hover,
+.dark .fi-main-ctn:hover { scrollbar-color: rgba(255, 255, 255, .22) transparent; }
+.dark .fi-sidebar-nav:hover::-webkit-scrollbar-thumb,
+.dark .fi-main-ctn:hover::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .22); }
+
+/* หน้าเว็บทั้งหน้า (Windows แสดงแถบหนาเป็นค่าเริ่มต้น) */
+html { scrollbar-width: thin; scrollbar-color: rgba(112, 74, 159, .35) transparent; }
+html::-webkit-scrollbar { width: 8px; }
+html::-webkit-scrollbar-track { background: transparent; }
+html::-webkit-scrollbar-thumb { background: rgba(112, 74, 159, .35); border-radius: 999px; }
+.dark { scrollbar-color: rgba(255, 255, 255, .22) transparent; }

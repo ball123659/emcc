@@ -32,7 +32,7 @@
     <div class="actions">
         <a class="btn primary" href="{{ url('/') }}">กลับหน้าแรก</a>
         @if (request()->is('backend*'))
-            <a class="btn secondary" href="{{ url('/backend') }}">หน้าหลังบ้าน</a>
+            <a class="btn secondary" href="{{ url('/backend') }}">EMCC Backend</a>
         @endif
     </div>
 </main>
