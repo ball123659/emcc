@@ -95,7 +95,7 @@ class NewsTest extends TestCase
     public function test_publish_status_and_schedule(): void
     {
         $now = $this->news(['status' => News::STATUS_PUBLISHED]);
-        $this->assertNotNull($now->published_at, 'เผยแพร่โดยไม่ระบุเวลา = ตอนนี้');
+        $this->assertNotNull($now->published_at, 'เผยแพร่โดยไม่ระบุวัน = วันนี้');
         $this->assertSame(News::STATUS_PUBLISHED, $now->displayStatus());
 
         $later = $this->news(['status' => News::STATUS_PUBLISHED, 'published_at' => now()->addDay()]);
@@ -108,6 +108,39 @@ class NewsTest extends TestCase
 
         $this->travel(2)->days();
         $this->assertEqualsCanonicalizing([$now->id, $later->id], News::published()->pluck('id')->all());
+    }
+
+    public function test_publish_date_is_day_level(): void
+    {
+        $this->travelTo(now()->setTime(14, 35));
+
+        $today = $this->news(['status' => News::STATUS_PUBLISHED]);
+        $this->assertSame(today()->format('Y-m-d H:i:s'), $today->published_at->format('Y-m-d H:i:s'));
+
+        $withTime = $this->news(['status' => News::STATUS_PUBLISHED, 'published_at' => '2026-12-01 15:45']);
+        $this->assertSame('2026-12-01 00:00:00', $withTime->published_at->format('Y-m-d H:i:s'));
+
+        // ตั้งเผยแพร่พรุ่งนี้ -> ขึ้นหน้าเว็บตอน 00:00 ของวันพรุ่งนี้
+        $tomorrow = $this->news(['status' => News::STATUS_PUBLISHED, 'published_at' => today()->addDay()->toDateString()]);
+        $this->assertFalse($tomorrow->isPubliclyVisible());
+        $this->travelTo(today()->addDay()->setTime(0, 0, 1));
+        $this->assertTrue($tomorrow->fresh()->isPubliclyVisible());
+    }
+
+    public function test_publish_date_field_is_date_only_in_form(): void
+    {
+        $this->actingAs(User::factory()->administrator()->create());
+        $news = $this->news(['status' => News::STATUS_PUBLISHED, 'published_at' => '2026-11-20']);
+
+        Livewire::test(EditNews::class, ['record' => $news->getRouteKey()])
+            ->assertSchemaStateSet(['published_at' => '2026-11-20'])
+            ->fillForm(['published_at' => '2026-11-25'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame('2026-11-25 00:00:00', $news->refresh()->published_at->format('Y-m-d H:i:s'));
+
+        Livewire::test(ListNews::class)->assertSee('25/11/2026')->assertDontSee('25/11/2026 00:00');
     }
 
     public function test_pinned_news_comes_first_and_view_count(): void

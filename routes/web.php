@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DownloadController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\NewsAttachmentController;
 use Illuminate\Support\Facades\Route;
@@ -17,3 +18,9 @@ Route::get('/media/{path}', [MediaController::class, 'show'])
 Route::get('/news/attachments/{attachment}', NewsAttachmentController::class)
     ->whereNumber('attachment')
     ->name('news.attachment');
+
+// ไฟล์ดาวน์โหลด / ลิงก์ภายนอก (ลิงก์คงที่ตาม id)
+Route::get('/downloads/{download}', DownloadController::class)
+    ->whereNumber('download')
+    ->middleware('throttle:60,1')
+    ->name('downloads.show');

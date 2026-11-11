@@ -37,6 +37,7 @@ class AdminPanelProvider extends PanelProvider
             ->navigationGroups([
                 'จัดการ Highlight',
                 'ข่าวประชาสัมพันธ์',
+                'ไฟล์ดาวน์โหลด',
                 'ผู้ดูแลระบบ',
             ])
             ->brandName('EMCC หลังบ้าน')
