@@ -59,6 +59,15 @@ php artisan schedule:run
 ```
 งานที่มี: ลบบันทึกการใช้งานที่เก่ากว่า `ACTIVITY_LOG_RETENTION_DAYS` (ค่าเริ่มต้น 730 วัน) ทุกวันเวลา 02:15
 
+## อัปเดตโค้ด (หลัง pull ทุกครั้ง)
+```bash
+git pull
+composer install            # โปรดักชัน: composer install --no-dev --optimize-autoloader
+php artisan migrate --force
+php artisan optimize:clear
+php artisan optimize        # โปรดักชันเท่านั้น — เครื่อง dev ไม่ต้องรัน (ถ้ารันแล้ว pull โค้ดใหม่ เมนู/วิดเจ็ตใหม่จะไม่แสดง)
+```
+
 ## หลังติดตั้ง
 - ล็อกอิน `/backend` ด้วย `developer` / `passwordemcc` แล้วตั้งรหัสใหม่
 - แก้ email ของบัญชี developer ให้เป็นของจริง

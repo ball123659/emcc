@@ -90,6 +90,17 @@ class CheckEnvironment extends Command
             $this->check('เชื่อมต่อฐานข้อมูลได้', false, 'ตรวจ DB_* ใน .env: '.$e->getMessage());
         }
 
+        // cache ของ php artisan optimize ในเครื่อง dev ทำให้เมนู/วิดเจ็ตใหม่ไม่แสดงหลัง pull โค้ด
+        $cached = array_filter([
+            app()->configurationIsCached() ? 'config' : null,
+            app()->routesAreCached() ? 'routes' : null,
+            glob(base_path('bootstrap/cache/filament/panels/*.php')) ? 'filament' : null,
+        ]);
+
+        if ($cached !== [] && ! app()->isProduction()) {
+            $this->warn('  ! พบ cache ('.implode(', ', $cached).') บนเครื่อง dev — หลัง pull โค้ดใหม่ให้รัน php artisan optimize:clear ไม่งั้นหน้าเว็บจะยังเป็นแบบเก่า');
+        }
+
         // สแกนไวรัส
         $driver = config('emcc.virus_scanner.driver');
         if ($driver === 'none') {

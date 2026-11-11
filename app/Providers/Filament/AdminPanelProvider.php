@@ -15,6 +15,7 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Support\Enums\Width;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -39,7 +40,8 @@ class AdminPanelProvider extends PanelProvider
             // ธีม EMCC (CSS ล้วน ไม่ต้อง build) — ใส่ ?v= ตามเวลาแก้ไฟล์เพื่อไม่ให้ติด cache
             ->renderHook(PanelsRenderHook::STYLES_AFTER, fn (): string => '<link rel="stylesheet" href="'.asset('css/emcc/admin.css').'?v='.@filemtime(public_path('css/emcc/admin.css')).'">')
             ->renderHook(PanelsRenderHook::SIMPLE_LAYOUT_START, fn (): string => view('filament.auth-brand')->render(), scopes: Login::class)
-            ->sidebarCollapsibleOnDesktop()
+            ->maxContentWidth(Width::Full) // ใช้พื้นที่จอเต็ม (ซ่อนเมนูข้างแล้วเนื้อหากว้างขึ้นจริง)
+            ->sidebarFullyCollapsibleOnDesktop() // ซ่อนเมนูข้างได้ทั้งหมดเพื่อขยายพื้นที่เนื้อหา (ระบบจำสถานะไว้)
             ->navigationGroups([
                 'จัดการ Highlight',
                 'ข่าวประชาสัมพันธ์',
@@ -47,7 +49,7 @@ class AdminPanelProvider extends PanelProvider
                 'ตั้งค่า',
                 'ผู้ดูแลระบบ',
             ])
-            ->brandName('EMCC หลังบ้าน')
+            ->brandName('EMCC Backend')
             ->font('Prompt', url: asset('fonts/prompt/prompt.css'), provider: LocalFontProvider::class)
             ->favicon(asset('favicon.svg'))
             ->colors([

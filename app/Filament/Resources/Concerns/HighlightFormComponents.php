@@ -19,7 +19,7 @@ class HighlightFormComponents
     public static function title(): TextInput
     {
         return TextInput::make('title')
-            ->label('ชื่อเรียก (ใช้ในหลังบ้าน ไม่แสดงหน้าเว็บ)')
+            ->label('ชื่อเรียก (ใช้ภายในระบบ ไม่แสดงบนหน้าเว็บ)')
             ->required()
             ->maxLength(200)
             ->validationMessages(['required' => 'กรุณาตั้งชื่อเรียก เช่น "รณรงค์ลด PM2.5 พ.ย. 69"']);
