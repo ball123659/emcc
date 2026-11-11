@@ -31,16 +31,22 @@ class CheckEnvironment extends Command
         );
         $this->check('file_uploads = On', (bool) ini_get('file_uploads'), 'ตั้ง file_uploads = On ใน php.ini');
 
-        $needMb = (int) ceil(config('emcc.images.max_upload_kb') / 1024);
+        $uploadMb = (int) config('emcc.php_upload_max_mb');
+        $postMb = (int) config('emcc.php_post_max_mb');
         $this->check(
-            "upload_max_filesize ≥ {$needMb}M (ตอนนี้ ".ini_get('upload_max_filesize').')',
-            $this->bytes(ini_get('upload_max_filesize')) >= $needMb * 1024 * 1024,
-            "ตั้ง upload_max_filesize = {$needMb}M ใน php.ini",
+            "upload_max_filesize ≥ {$uploadMb}M (ตอนนี้ ".ini_get('upload_max_filesize').')',
+            $this->bytes(ini_get('upload_max_filesize')) >= $uploadMb * 1024 * 1024,
+            "ตั้ง upload_max_filesize = {$uploadMb}M ใน php.ini",
         );
         $this->check(
-            'post_max_size ≥ '.($needMb + 2).'M (ตอนนี้ '.ini_get('post_max_size').')',
-            $this->bytes(ini_get('post_max_size')) >= ($needMb + 2) * 1024 * 1024,
-            'ตั้ง post_max_size = '.($needMb + 2).'M ใน php.ini (ต้องมากกว่า upload_max_filesize)',
+            "post_max_size ≥ {$postMb}M (ตอนนี้ ".ini_get('post_max_size').')',
+            $this->bytes(ini_get('post_max_size')) >= $postMb * 1024 * 1024,
+            "ตั้ง post_max_size = {$postMb}M ใน php.ini (ต้องมากกว่า upload_max_filesize)",
+        );
+        $this->check(
+            'post_max_size มากกว่า upload_max_filesize',
+            $this->bytes(ini_get('post_max_size')) > $this->bytes(ini_get('upload_max_filesize')),
+            'ตั้ง post_max_size ให้มากกว่า upload_max_filesize ไม่งั้นฟอร์มที่แนบไฟล์ขนาดเต็มจะส่งไม่ผ่าน',
         );
 
         // extension
