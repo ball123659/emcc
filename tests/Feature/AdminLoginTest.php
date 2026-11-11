@@ -14,8 +14,8 @@ class AdminLoginTest extends TestCase
 
     public function test_guest_is_redirected_to_login(): void
     {
-        $this->get('/admin')->assertRedirect('/admin/login');
-        $this->get('/admin/login')->assertOk()->assertSee('ชื่อผู้ใช้');
+        $this->get('/backend')->assertRedirect('/backend/login');
+        $this->get('/backend/login')->assertOk()->assertSee('ชื่อผู้ใช้');
     }
 
     public function test_user_can_login_with_username(): void
@@ -29,7 +29,7 @@ class AdminLoginTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertAuthenticatedAs($user);
-        $this->get('/admin')->assertOk();
+        $this->get('/backend')->assertOk();
     }
 
     public function test_wrong_password_shows_thai_error(): void

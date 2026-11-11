@@ -2,7 +2,7 @@
 
 ศูนย์เฝ้าระวังและควบคุมคุณภาพสิ่งแวดล้อม (Environmental Monitoring & Control Center)
 
-- Laravel 13 + Filament 5 (หลังบ้านที่ `/admin`), หน้าบ้าน Blade
+- Laravel 13 + Filament 5 (หลังบ้านที่ `/backend`), หน้าบ้าน Blade อยู่ที่ `/` ในโปรเจกต์เดียวกัน
 - MySQL 8.0.16+ / MariaDB 10.4+ ฐานข้อมูล `webemcc` (`utf8mb4_general_ci`), เวลา Asia/Bangkok
 - PHP **8.3+** (Laravel 13 ต้องการ 8.3) พร้อม extension: `pdo_mysql`, `mbstring`, `intl`, `fileinfo`, `gd`, `zip`, `openssl`
 - รันได้ทั้ง Windows (IIS) และ Linux
@@ -36,7 +36,7 @@ php artisan db:seed          # รันซ้ำได้ ไม่ทับข
 php artisan serve
 ```
 
-แล้วเข้า http://localhost:8000/admin ด้วย `developer` / `passwordemcc` (ระบบจะบังคับเปลี่ยนรหัสเมื่อทำลำดับงานข้อ 2 เสร็จ) — **แก้ email ของบัญชีนี้ก่อนใช้งานจริง**
+แล้วเข้า http://localhost:8000/backend ด้วย `developer` / `passwordemcc` (ระบบจะบังคับเปลี่ยนรหัสเมื่อทำลำดับงานข้อ 2 เสร็จ) — **แก้ email ของบัญชีนี้ก่อนใช้งานจริง**
 
 ## ทดสอบ
 
