@@ -10,7 +10,17 @@ return [
     // รหัสผ่านใหม่ต้องยาวอย่างน้อย
     'password_min_length' => 6,
 
-    // ล็อกอินผิดครบกี่ครั้งจึงล็อก และล็อกกี่นาที
+    // โปรดักชัน: เปิดด้วย http ให้ redirect ไป https (ปิดได้ถ้า IIS/proxy redirect ให้แล้ว)
+    'force_https' => (bool) env('FORCE_HTTPS', true),
+
+    // เก็บบันทึกการใช้งานย้อนหลังกี่วัน (ลบอัตโนมัติด้วย scheduler)
+    'activity_log_retention_days' => (int) env('ACTIVITY_LOG_RETENTION_DAYS', 730),
+
+    // รูปแบบวันที่ที่ใช้ทั้งระบบ (ค.ศ.)
+    'date_format' => 'd/m/Y',
+    'datetime_format' => 'd/m/Y H:i',
+
+    // ล็อกอินผิดครบกี่ครั้ง (ภายในเวลาที่ล็อก) จึงล็อก และล็อกกี่นาที
     'login_max_attempts' => 5,
     'login_lockout_minutes' => 15,
 

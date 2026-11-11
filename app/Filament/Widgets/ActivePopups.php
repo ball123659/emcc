@@ -11,7 +11,7 @@ use Filament\Widgets\TableWidget;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Popup ที่กำลังแสดง และรอแสดง — เรียงตามวันหมดอายุ (ใกล้หมดอายุขึ้นก่อน)
+ * Popup ที่กำลังแสดงอยู่วันนี้ — เรียงตามวันหมดอายุ (ใกล้หมดอายุขึ้นก่อน)
  */
 class ActivePopups extends TableWidget
 {
@@ -25,8 +25,8 @@ class ActivePopups extends TableWidget
     {
         return $table
             ->query(fn (): Builder => Popup::query()
-                ->where('is_active', true)
-                ->whereDate('end_date', '>=', today())
+                ->visible()
+                ->reorder()
                 ->orderBy('end_date')
                 ->orderBy('sort_order'))
             ->paginated([5, 10])
@@ -34,12 +34,7 @@ class ActivePopups extends TableWidget
             ->emptyStateHeading('ไม่มี Popup ที่กำลังแสดง')
             ->columns([
                 TextColumn::make('title')->label('ชื่อเรียก')->wrap(),
-                TextColumn::make('end_date')->label('สิ้นสุด')->date('d/m/Y'),
-                TextColumn::make('display_status')
-                    ->label('สถานะ')
-                    ->badge()
-                    ->state(fn (Popup $record) => Popup::STATUS_LABELS[$record->displayStatus()])
-                    ->color(fn (Popup $record) => Popup::STATUS_COLORS[$record->displayStatus()]),
+                TextColumn::make('end_date')->label('สิ้นสุด')->date(),
                 TextColumn::make('days_left')
                     ->label('เหลือ')
                     ->state(fn (Popup $record) => match ($days = $record->daysUntilExpiry()) {

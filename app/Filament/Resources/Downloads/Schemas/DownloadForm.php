@@ -16,6 +16,7 @@ use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Model;
 
 class DownloadForm
 {
@@ -89,7 +90,13 @@ class DownloadForm
                     ->schema([
                         Select::make('category_id')
                             ->label('หมวดหมู่')
-                            ->options(fn () => DownloadCategory::query()->active()->ordered()->pluck('name_th', 'id')->all())
+                            // หมวดที่ปิดแล้วไม่ให้เลือกใหม่ แต่รายการเดิมที่อยู่ในหมวดนั้นต้องบันทึกต่อได้
+                            ->options(fn (?Model $record) => DownloadCategory::query()
+                                ->where(fn ($q) => $q->where('is_active', true)->when($record?->category_id, fn ($q, $id) => $q->orWhere('id', $id)))
+                                ->ordered()
+                                ->get()
+                                ->mapWithKeys(fn (DownloadCategory $c) => [$c->id => $c->name_th.($c->is_active ? '' : ' (ปิดใช้งาน)')])
+                                ->all())
                             ->required()
                             ->exists('download_categories', 'id')
                             ->validationMessages(['required' => 'กรุณาเลือกหมวดหมู่']),

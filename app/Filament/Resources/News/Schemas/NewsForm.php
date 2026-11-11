@@ -22,6 +22,7 @@ use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Model;
 
 class NewsForm
 {
@@ -194,12 +195,17 @@ class NewsForm
                 DatePicker::make('published_at')
                     ->label('วันที่เผยแพร่')
                     ->native(false)
-                    ->displayFormat('d/m/Y')
                     ->closeOnDateSelection()
                     ->helperText('เว้นว่าง = เผยแพร่วันนี้ · เลือกวันในอนาคต = ตั้งเวลาเผยแพร่ (ขึ้นหน้าเว็บตั้งแต่ 00:00 น. ของวันนั้น)'),
                 Select::make('category_id')
                     ->label('หมวดหมู่')
-                    ->options(fn () => NewsCategory::query()->active()->ordered()->pluck('name_th', 'id')->all())
+                    // หมวดที่ปิดแล้วไม่ให้เลือกใหม่ แต่รายการเดิมที่อยู่ในหมวดนั้นต้องบันทึกต่อได้
+                    ->options(fn (?Model $record) => NewsCategory::query()
+                        ->where(fn ($q) => $q->where('is_active', true)->when($record?->category_id, fn ($q, $id) => $q->orWhere('id', $id)))
+                        ->ordered()
+                        ->get()
+                        ->mapWithKeys(fn (NewsCategory $c) => [$c->id => $c->name_th.($c->is_active ? '' : ' (ปิดใช้งาน)')])
+                        ->all())
                     ->required()
                     ->exists('news_categories', 'id')
                     ->validationMessages(['required' => 'กรุณาเลือกหมวดหมู่']),
@@ -211,7 +217,10 @@ class NewsForm
                     ->regex('/^[a-zA-Z0-9\-]*$/')
                     ->unique(ignoreRecord: true)
                     ->prefix('/news/')
-                    ->helperText('เว้นว่างเพื่อสร้างอัตโนมัติ (ปี-เดือน-ชื่อภาษาอังกฤษ) · ใช้ได้เฉพาะ a-z, 0-9 และขีด (-)')
+                    ->disabled(fn (?News $record) => (bool) $record?->isSlugLocked())
+                    ->helperText(fn (?News $record) => $record?->isSlugLocked()
+                        ? 'ข่าวเผยแพร่แล้ว เปลี่ยนไม่ได้ เพื่อไม่ให้ลิงก์ที่แชร์ไปแล้วใช้ไม่ได้'
+                        : 'เว้นว่างเพื่อสร้างอัตโนมัติ (ปี-เดือน-ชื่อภาษาอังกฤษ หรือ ปี-เดือน-เลขข่าว) · ใช้ได้เฉพาะ a-z, 0-9 และขีด (-) · เปลี่ยนได้จนกว่าจะเผยแพร่')
                     ->validationMessages([
                         'regex' => 'ใช้ได้เฉพาะ a-z, 0-9 และขีด (-) ห้ามมีช่องว่างหรือภาษาไทย',
                         'unique' => 'ชื่อใน URL นี้ถูกใช้แล้ว (รวมข่าวที่ถูกลบ) กรุณาใช้ชื่ออื่น',
@@ -220,7 +229,7 @@ class NewsForm
                     ->visibleOn('edit')
                     ->schema([
                         TextEntry::make('view_count')->label('ยอดเข้าชม')->numeric(),
-                        TextEntry::make('updated_at')->label('แก้ไขล่าสุด')->dateTime('d/m/Y H:i'),
+                        TextEntry::make('updated_at')->label('แก้ไขล่าสุด')->dateTime(),
                     ]),
             ]);
     }

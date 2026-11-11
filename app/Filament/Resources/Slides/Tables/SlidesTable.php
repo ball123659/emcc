@@ -43,7 +43,7 @@ class SlidesTable
                 C::statusColumn(),
                 ToggleColumn::make('is_active')
                     ->label('เปิดแสดง')
-                    ->disabled(fn (Slide $record) => $record->trashed()),
+                    ->disabled(fn (Slide $record) => $record->trashed() || ! auth()->user()->can('update', $record)),
             ])
             ->filters([
                 SelectFilter::make('display_status')

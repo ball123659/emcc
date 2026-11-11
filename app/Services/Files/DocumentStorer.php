@@ -82,6 +82,7 @@ class DocumentStorer
     public function store(SplFileInfo $file, string $directory): StoredFile
     {
         $path = $file->getRealPath();
+        @set_time_limit(120); // สแกนไวรัส + คัดลอกไฟล์ใหญ่ อาจเกิน max_execution_time ปกติ
 
         if ($path === false || ! is_file($path)) {
             throw new FileRejectedException('อ่านไฟล์ที่อัปโหลดไม่ได้ กรุณาอัปโหลดใหม่อีกครั้ง');

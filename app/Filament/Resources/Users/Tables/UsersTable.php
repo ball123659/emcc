@@ -2,12 +2,15 @@
 
 namespace App\Filament\Resources\Users\Tables;
 
+use App\Filament\Resources\ActivityLogs\ActivityLogResource;
 use App\Filament\Resources\Users\Actions\UserActions;
 use App\Models\User;
+use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\RestoreAction;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -66,7 +69,7 @@ class UsersTable
                     }),
                 TextColumn::make('last_login_at')
                     ->label('เข้าสู่ระบบล่าสุด')
-                    ->dateTime('d/m/Y H:i')
+                    ->dateTime()
                     ->placeholder('ยังไม่เคย')
                     ->sortable(),
             ])
@@ -78,6 +81,11 @@ class UsersTable
             ->recordActions([
                 EditAction::make(),
                 ActionGroup::make([
+                    Action::make('activity')
+                        ->label('ดูบันทึกการใช้งาน')
+                        ->icon(Heroicon::OutlinedClock)
+                        ->color('gray')
+                        ->url(fn (User $record) => ActivityLogResource::getUrl('index', ['filters' => ['user_id' => ['value' => $record->id]]])),
                     UserActions::resetPassword(),
                     UserActions::unlock(),
                     DeleteAction::make()
