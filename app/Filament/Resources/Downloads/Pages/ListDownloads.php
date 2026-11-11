@@ -10,7 +10,7 @@ class ListDownloads extends ListRecords
 {
     protected static string $resource = DownloadResource::class;
 
-    protected ?string $subheading = 'กดปุ่มเรียงลำดับแล้วลากเพื่อจัดลำดับการแสดงหน้าเว็บ';
+    protected ?string $subheading = 'กดปุ่ม ⇅ ที่มุมตาราง แล้วลากเพื่อจัดลำดับการแสดงบนหน้าเว็บ';
 
     protected function getHeaderActions(): array
     {

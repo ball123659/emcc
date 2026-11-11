@@ -3,14 +3,16 @@
 namespace App\Filament\Resources\Slides\Tables;
 
 use App\Filament\Resources\Concerns\HighlightFormComponents as C;
+use App\Filament\Resources\Concerns\QuickActions;
+use App\Filament\Resources\Slides\SlideResource;
 use App\Models\Slide;
+use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\RestoreAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,6 +22,16 @@ class SlidesTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->emptyStateIcon('heroicon-o-photo')
+            ->emptyStateHeading('ยังไม่มีสไลด์')
+            ->emptyStateDescription('สไลด์จะแสดงเป็นแบนเนอร์หมุนเวียนบนหน้าแรกของเว็บไซต์')
+            ->emptyStateActions([
+                Action::make('createFirst')
+                    ->label('เพิ่มสไลด์แรก')
+                    ->icon('heroicon-m-plus')
+                    ->url(fn () => SlideResource::getUrl('create'))
+                    ->visible(fn () => SlideResource::canCreate()),
+            ])
             ->reorderable('sort_order')
             ->defaultSort('sort_order')
             ->paginated([25, 50, 100])
@@ -46,22 +58,19 @@ class SlidesTable
                     ->disabled(fn (Slide $record) => $record->trashed() || ! auth()->user()->can('update', $record)),
             ])
             ->filters([
-                SelectFilter::make('display_status')
-                    ->label('สถานะ')
-                    ->options(Slide::STATUS_LABELS)
-                    ->query(fn (Builder $query, array $data) => self::filterStatus($query, $data['value'] ?? null)),
                 TrashedFilter::make()->label('รายการที่ถูกลบ'),
             ])
             ->recordActions([
                 EditAction::make(),
                 ActionGroup::make([
+                    QuickActions::duplicate(),
                     DeleteAction::make()->modalDescription('รายการจะหายจากหน้าเว็บ และกู้คืนได้จากตัวกรอง "รายการที่ถูกลบ"'),
                     RestoreAction::make(),
                 ]),
             ]);
     }
 
-    private static function filterStatus(Builder $query, ?string $status): Builder
+    public static function filterStatus(Builder $query, ?string $status): Builder
     {
         $today = today()->toDateString();
 

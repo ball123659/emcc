@@ -36,6 +36,7 @@ class ContentStats extends StatsOverviewWidget
         return [
             Stat::make('ข่าวที่เผยแพร่แล้ว', number_format($published->count()))
                 ->description("เดือนนี้ {$thisMonth} ข่าว")
+                ->chart($this->newsPerMonth())
                 ->icon(Heroicon::OutlinedNewspaper)
                 ->color('primary'),
             Stat::make('ข่าวตั้งเวลา / ร่าง', number_format($scheduled).' / '.number_format($drafts))
@@ -54,6 +55,20 @@ class ContentStats extends StatsOverviewWidget
                 ->icon(Heroicon::OutlinedArrowDownTray)
                 ->color('primary'),
         ];
+    }
+
+    /** จำนวนข่าวที่เผยแพร่ ย้อนหลัง 6 เดือน (สำหรับกราฟเล็ก) */
+    private function newsPerMonth(): array
+    {
+        $start = now()->startOfMonth()->subMonths(5);
+        $dates = News::query()
+            ->where('status', News::STATUS_PUBLISHED)
+            ->whereBetween('published_at', [$start, now()])
+            ->pluck('published_at');
+
+        return collect(range(0, 5))
+            ->map(fn (int $i) => $dates->filter(fn ($d) => $d->format('Y-m') === $start->copy()->addMonths($i)->format('Y-m'))->count())
+            ->all();
     }
 
     protected function getColumns(): int

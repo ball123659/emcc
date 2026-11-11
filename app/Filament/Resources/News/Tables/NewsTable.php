@@ -2,8 +2,11 @@
 
 namespace App\Filament\Resources\News\Tables;
 
+use App\Filament\Resources\Concerns\QuickActions;
+use App\Filament\Resources\News\NewsResource;
 use App\Models\News;
 use App\Models\NewsCategory;
+use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -21,6 +24,16 @@ class NewsTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->emptyStateIcon('heroicon-o-newspaper')
+            ->emptyStateHeading('ยังไม่มีข่าว')
+            ->emptyStateDescription('เริ่มเผยแพร่ข่าวประชาสัมพันธ์ชิ้นแรกของศูนย์ฯ')
+            ->emptyStateActions([
+                Action::make('createFirst')
+                    ->label('เพิ่มข่าวแรก')
+                    ->icon('heroicon-m-plus')
+                    ->url(fn () => NewsResource::getUrl('create'))
+                    ->visible(fn () => NewsResource::canCreate()),
+            ])
             ->modifyQueryUsing(fn (Builder $query) => $query->with('category'))
             ->defaultSort('id', 'desc')
             ->columns([
@@ -57,15 +70,6 @@ class NewsTable
                     ->sortable(),
             ])
             ->filters([
-                SelectFilter::make('display_status')
-                    ->label('สถานะ')
-                    ->options(News::DISPLAY_LABELS)
-                    ->query(fn (Builder $query, array $data) => match ($data['value'] ?? null) {
-                        News::DISPLAY_SCHEDULED => $query->where('status', News::STATUS_PUBLISHED)->where('published_at', '>', now()),
-                        News::STATUS_PUBLISHED => $query->where('status', News::STATUS_PUBLISHED)->where('published_at', '<=', now()),
-                        News::STATUS_DRAFT, News::STATUS_HIDDEN => $query->where('status', $data['value']),
-                        default => $query,
-                    }),
                 SelectFilter::make('category_id')
                     ->label('หมวดหมู่')
                     ->options(fn () => NewsCategory::query()->ordered()->pluck('name_th', 'id')->all()),
@@ -75,6 +79,8 @@ class NewsTable
             ->recordActions([
                 EditAction::make(),
                 ActionGroup::make([
+                    QuickActions::publishNow(),
+                    QuickActions::hide(),
                     DeleteAction::make()->modalDescription('ข่าวจะหายจากหน้าเว็บ และกู้คืนได้จากตัวกรอง "รายการที่ถูกลบ"'),
                     RestoreAction::make(),
                 ]),

@@ -16,7 +16,8 @@ use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\EmbeddedSchema;
 use Filament\Schemas\Components\Form;
-use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Tabs;
+use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Collection;
@@ -53,6 +54,12 @@ class SiteSettings extends Page
         'social' => 'โซเชียลมีเดีย',
     ];
 
+    public const GROUP_ICONS = [
+        'general' => 'heroicon-o-globe-alt',
+        'contact' => 'heroicon-o-phone',
+        'social' => 'heroicon-o-share',
+    ];
+
     public ?array $data = [];
 
     public function mount(): void
@@ -82,13 +89,17 @@ class SiteSettings extends Page
         $sections = $this->settings()
             ->groupBy('group')
             ->sortBy(fn ($items, string $group) => array_search($group, array_keys(self::GROUPS), true) === false ? 99 : array_search($group, array_keys(self::GROUPS), true))
-            ->map(fn (Collection $items, string $group) => Section::make(self::GROUPS[$group] ?? $group)
+            ->map(fn (Collection $items, string $group) => Tab::make(self::GROUPS[$group] ?? $group)
+                ->icon(self::GROUP_ICONS[$group] ?? null)
                 ->columns(2)
                 ->schema($items->flatMap(fn (SiteSetting $setting) => $this->fieldsFor($setting))->all()))
             ->values()
             ->all();
 
-        return $schema->components($sections)->statePath('data');
+        // แบ่งเป็นแท็บ แทนการเลื่อนหน้ายาว — จำแท็บล่าสุดไว้ใน URL
+        return $schema->components([
+            Tabs::make('settings')->tabs($sections)->persistTabInQueryString(),
+        ])->statePath('data');
     }
 
     /** @return array<Component> */

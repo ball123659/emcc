@@ -17,7 +17,7 @@ class ActivePopups extends TableWidget
 {
     use DashboardWidget;
 
-    protected static ?int $sort = 2;
+    protected static ?int $sort = 4;
 
     protected static ?string $heading = 'Popup ที่กำลังแสดง / ใกล้หมดอายุ';
 
