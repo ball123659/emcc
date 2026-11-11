@@ -27,6 +27,13 @@ return [
     /*
     | รูปภาพ: ต้นฉบับไม่เกิน 10 MB, ด้านยาวเกินกำหนดย่ออัตโนมัติ, แปลงเป็น WebP
     */
+    /*
+    | ค่าขั้นต่ำใน php.ini ที่ระบบต้องการ (ตรวจด้วย php artisan emcc:check)
+    | upload_max_filesize = 20M / post_max_size = 30M — รองรับไฟล์ดาวน์โหลดสูงสุด 20 MB
+    */
+    'php_upload_max_mb' => 20,
+    'php_post_max_mb' => 30,
+
     'images' => [
         'max_upload_kb' => 10240,
         'max_dimension' => 1920,
