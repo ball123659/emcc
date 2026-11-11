@@ -41,6 +41,7 @@ return [
     'same' => ':attribute และ :other ต้องตรงกัน',
     'string' => ':attribute ต้องเป็นข้อความ',
     'unique' => ':attribute นี้ถูกใช้แล้ว กรุณาใช้ค่าอื่น',
+    'uploaded' => ':attribute อัปโหลดไม่สำเร็จ — ไฟล์อาจใหญ่เกินที่เซิร์ฟเวอร์รับ หรือเซิร์ฟเวอร์เขียนไฟล์ชั่วคราวไม่ได้ (ผู้ดูแลระบบรัน php artisan emcc:check เพื่อตรวจ)',
     'url' => 'รูปแบบ:attributeไม่ถูกต้อง ต้องขึ้นต้นด้วย http:// หรือ https://',
 
     'attributes' => [],
