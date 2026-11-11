@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasBilingualFields;
+use App\Models\Concerns\LogsActivity;
 use App\Models\Concerns\TracksUser;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\Cache;
  */
 class SiteSetting extends Model
 {
-    use HasBilingualFields, TracksUser;
+    use HasBilingualFields, LogsActivity, TracksUser;
 
     public const CREATED_AT = null;
 

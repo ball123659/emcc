@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasBilingualFields;
+use App\Models\Concerns\LogsActivity;
 use App\Models\Concerns\TracksUser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class Slide extends Model
 {
-    use HasBilingualFields, SoftDeletes, TracksUser;
+    use HasBilingualFields, LogsActivity, SoftDeletes, TracksUser;
 
     public const LINK_NONE = 'none';
 

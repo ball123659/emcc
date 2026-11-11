@@ -3,13 +3,14 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasBilingualFields;
+use App\Models\Concerns\LogsActivity;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class NewsCategory extends Model
 {
-    use HasBilingualFields;
+    use HasBilingualFields, LogsActivity;
 
     protected $fillable = ['slug', 'name_th', 'name_en', 'sort_order', 'is_active'];
 

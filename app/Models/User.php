@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\LogsActivity;
 use App\Models\Concerns\TracksUser;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
@@ -18,7 +19,7 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable implements FilamentUser, HasName
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, SoftDeletes, TracksUser;
+    use HasFactory, LogsActivity, Notifiable, SoftDeletes, TracksUser;
 
     public const ROLE_DEVELOPER = 'developer';
 
@@ -56,6 +57,7 @@ class User extends Authenticatable implements FilamentUser, HasName
         'is_active' => true,
         'must_change_password' => true,
         'failed_login_attempts' => 0,
+        'deleted_at' => null,
     ];
 
     protected function casts(): array
@@ -85,7 +87,22 @@ class User extends Authenticatable implements FilamentUser, HasName
 
     protected function email(): Attribute
     {
+        return Attribute::set(fn (?string $value) => $value === null ? null : mb_strtolower(trim($value)));
+    }
+
+    protected function firstName(): Attribute
+    {
         return Attribute::set(fn (?string $value) => $value === null ? null : trim($value));
+    }
+
+    protected function lastName(): Attribute
+    {
+        return Attribute::set(fn (?string $value) => $value === null ? null : trim($value));
+    }
+
+    protected function position(): Attribute
+    {
+        return Attribute::set(fn (?string $value) => blank($value) ? null : trim($value));
     }
 
     /** เบอร์โทรเก็บเฉพาะตัวเลข */
@@ -122,6 +139,24 @@ class User extends Authenticatable implements FilamentUser, HasName
     public function isDeveloper(): bool
     {
         return $this->role === self::ROLE_DEVELOPER;
+    }
+
+    /** ผู้ใช้คนนี้ (actor) จัดการบัญชี $target ได้หรือไม่ — administrator แก้/ลบ developer ไม่ได้ */
+    public function canManage(User $target): bool
+    {
+        if (! $this->isAdmin()) {
+            return false;
+        }
+
+        return ! ($target->isDeveloper() && ! $this->isDeveloper());
+    }
+
+    /** บทบาทที่ผู้ใช้คนนี้กำหนดให้คนอื่นได้ */
+    public function assignableRoles(): array
+    {
+        return $this->isDeveloper()
+            ? self::ROLES
+            : array_diff_key(self::ROLES, [self::ROLE_DEVELOPER => true]);
     }
 
     public function isLocked(): bool
