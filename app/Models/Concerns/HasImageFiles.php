@@ -38,6 +38,12 @@ trait HasImageFiles
         });
     }
 
+    /** @return list<string> */
+    public static function imageFields(): array
+    {
+        return static::$imageFields;
+    }
+
     protected static function thumbnailPathFor(string $path): string
     {
         return preg_replace('/\.webp$/', '_thumb.webp', $path);

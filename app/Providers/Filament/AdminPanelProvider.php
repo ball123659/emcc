@@ -16,7 +16,6 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\View\PanelsRenderHook;
-use Filament\Widgets\AccountWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -37,6 +36,10 @@ class AdminPanelProvider extends PanelProvider
             ->revealablePasswords()
             ->defaultAvatarProvider(InitialsAvatarProvider::class)
             ->renderHook(PanelsRenderHook::BODY_END, fn (): string => view('filament.filepond-thai')->render())
+            // ธีม EMCC (CSS ล้วน ไม่ต้อง build) — ใส่ ?v= ตามเวลาแก้ไฟล์เพื่อไม่ให้ติด cache
+            ->renderHook(PanelsRenderHook::STYLES_AFTER, fn (): string => '<link rel="stylesheet" href="'.asset('css/emcc/admin.css').'?v='.@filemtime(public_path('css/emcc/admin.css')).'">')
+            ->renderHook(PanelsRenderHook::SIMPLE_LAYOUT_START, fn (): string => view('filament.auth-brand')->render(), scopes: Login::class)
+            ->sidebarCollapsibleOnDesktop()
             ->navigationGroups([
                 'จัดการ Highlight',
                 'ข่าวประชาสัมพันธ์',
@@ -57,9 +60,7 @@ class AdminPanelProvider extends PanelProvider
                 Dashboard::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
-            ->widgets([
-                AccountWidget::class,
-            ])
+            ->widgets([])
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

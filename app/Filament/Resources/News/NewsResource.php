@@ -43,6 +43,24 @@ class NewsResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'title_th';
 
+    /** ตัวเลขบนเมนู: ข่าวร่างที่ยังไม่เผยแพร่ */
+    public static function getNavigationBadge(): ?string
+    {
+        $count = News::query()->where('status', News::STATUS_DRAFT)->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'gray';
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return 'ข่าวร่างที่ยังไม่เผยแพร่';
+    }
+
     public static function form(Schema $schema): Schema
     {
         return NewsForm::configure($schema);

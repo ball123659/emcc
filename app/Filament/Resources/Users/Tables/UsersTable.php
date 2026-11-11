@@ -12,6 +12,7 @@ use Filament\Actions\EditAction;
 use Filament\Actions\RestoreAction;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
@@ -26,20 +27,24 @@ class UsersTable
         return $table
             ->defaultSort('id')
             ->columns([
-                TextColumn::make('username')
-                    ->label('ชื่อผู้ใช้')
-                    ->searchable()
-                    ->sortable()
-                    ->weight('medium'),
+                ImageColumn::make('avatar')
+                    ->label('')
+                    ->state(fn (User $record) => filament()->getUserAvatarUrl($record))
+                    ->circular()
+                    ->imageSize(40),
                 TextColumn::make('full_name')
-                    ->label('ชื่อ-นามสกุล')
+                    ->label('ผู้ใช้งาน')
+                    ->weight('medium')
+                    ->description(fn (User $record) => $record->username.' · '.$record->email)
                     ->searchable(query: fn (Builder $query, string $search) => $query->where(
-                        fn (Builder $q) => $q->where('first_name', 'like', "%{$search}%")->orWhere('last_name', 'like', "%{$search}%")
-                    ))
-                    ->description(fn (User $record) => $record->position),
-                TextColumn::make('email')
-                    ->label('อีเมล')
-                    ->searchable()
+                        fn (Builder $q) => $q->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%")
+                            ->orWhere('username', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%")
+                    )),
+                TextColumn::make('position')
+                    ->label('ตำแหน่ง')
+                    ->placeholder('-')
                     ->toggleable(),
                 TextColumn::make('role')
                     ->label('บทบาท')

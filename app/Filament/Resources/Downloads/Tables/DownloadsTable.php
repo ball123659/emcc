@@ -2,8 +2,10 @@
 
 namespace App\Filament\Resources\Downloads\Tables;
 
+use App\Filament\Resources\Downloads\DownloadResource;
 use App\Models\Download;
 use App\Models\DownloadCategory;
+use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -20,6 +22,16 @@ class DownloadsTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->emptyStateIcon('heroicon-o-arrow-down-tray')
+            ->emptyStateHeading('ยังไม่มีไฟล์ดาวน์โหลด')
+            ->emptyStateDescription('อัปโหลดเอกสาร รายงาน หรือใส่ลิงก์ภายนอกให้ผู้ชมดาวน์โหลด')
+            ->emptyStateActions([
+                Action::make('createFirst')
+                    ->label('เพิ่มไฟล์แรก')
+                    ->icon('heroicon-m-plus')
+                    ->url(fn () => DownloadResource::getUrl('create'))
+                    ->visible(fn () => DownloadResource::canCreate()),
+            ])
             ->modifyQueryUsing(fn (Builder $query) => $query->with('category'))
             ->reorderable('sort_order')
             ->defaultSort('sort_order')

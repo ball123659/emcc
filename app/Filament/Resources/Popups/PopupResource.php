@@ -43,6 +43,24 @@ class PopupResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'title';
 
+    /** ตัวเลขบนเมนู: Popup ที่กำลังแสดงและจะหมดอายุภายใน 3 วัน */
+    public static function getNavigationBadge(): ?string
+    {
+        $count = Popup::query()->visible()->whereDate('end_date', '<=', today()->addDays(3))->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return 'Popup ที่จะหมดอายุภายใน 3 วัน';
+    }
+
     public static function form(Schema $schema): Schema
     {
         return PopupForm::configure($schema);

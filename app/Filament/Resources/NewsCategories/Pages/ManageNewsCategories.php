@@ -10,7 +10,7 @@ class ManageNewsCategories extends ManageRecords
 {
     protected static string $resource = NewsCategoryResource::class;
 
-    protected ?string $subheading = 'กดปุ่มเรียงลำดับแล้วลากเพื่อจัดลำดับหมวดบนหน้าเว็บ · หมวดที่ยังมีข่าวลบไม่ได้';
+    protected ?string $subheading = 'กดปุ่ม ⇅ ที่มุมตาราง แล้วลากเพื่อจัดลำดับหมวดบนหน้าเว็บ · หมวดที่ยังมีข่าวลบไม่ได้';
 
     protected function getHeaderActions(): array
     {

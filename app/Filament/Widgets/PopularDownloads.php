@@ -17,7 +17,7 @@ class PopularDownloads extends TableWidget
 {
     use DashboardWidget;
 
-    protected static ?int $sort = 3;
+    protected static ?int $sort = 5;
 
     protected static ?string $heading = 'ไฟล์ยอดนิยม';
 
