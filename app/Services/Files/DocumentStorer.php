@@ -22,9 +22,11 @@ class DocumentStorer
     /** นามสกุล => MIME ที่ยอมรับ (ตรวจจากเนื้อไฟล์ด้วย finfo) */
     public const ALLOWED = [
         'pdf' => ['application/pdf'],
-        'doc' => ['application/msword', 'application/CDFV2', 'application/x-ole-storage'],
+        // .doc / .xls ที่ระบบอื่น export มักเป็น HTML / XML / RTF / ข้อความ (Word/Excel เปิดได้)
+        // ปลอดภัยเพราะดาวน์โหลดแบบ attachment + nosniff เสมอ เบราว์เซอร์ไม่เรนเดอร์เป็นหน้าเว็บ
+        'doc' => ['application/msword', 'application/CDFV2', 'application/x-ole-storage', 'text/html', 'text/rtf', 'application/rtf', 'text/xml', 'application/xml'],
         'docx' => ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip', 'application/octet-stream'],
-        'xls' => ['application/vnd.ms-excel', 'application/CDFV2', 'application/x-ole-storage'],
+        'xls' => ['application/vnd.ms-excel', 'application/CDFV2', 'application/x-ole-storage', 'text/html', 'text/xml', 'application/xml', 'text/plain', 'text/csv'],
         'xlsx' => ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/zip', 'application/octet-stream'],
         'ppt' => ['application/vnd.ms-powerpoint', 'application/CDFV2', 'application/x-ole-storage'],
         'pptx' => ['application/vnd.openxmlformats-officedocument.presentationml.presentation', 'application/zip', 'application/octet-stream'],
@@ -68,7 +70,8 @@ class DocumentStorer
     /** MIME ทั้งหมดสำหรับ acceptedFileTypes ฝั่งเบราว์เซอร์ */
     public static function browserMimeTypes(): array
     {
-        return array_values(array_unique([...array_values(self::RESPONSE_MIME), 'application/vnd.ms-excel', 'text/plain']));
+        // เบราว์เซอร์บอกชนิดไฟล์จากนามสกุล (Windows บางเครื่องบอก .csv เป็น application/vnd.ms-excel)
+        return array_values(array_unique([...array_values(self::RESPONSE_MIME), 'application/vnd.ms-excel', 'text/plain', 'application/csv', 'text/x-csv', 'audio/mp3']));
     }
 
     public static function extensionsLabel(): string
@@ -105,7 +108,7 @@ class DocumentStorer
         $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($path) ?: 'application/octet-stream';
 
         if (! in_array($mime, self::ALLOWED[$extension], true)) {
-            throw new FileRejectedException("เนื้อไฟล์ไม่ตรงกับนามสกุล .{$extension} (ไฟล์อาจถูกเปลี่ยนนามสกุล) กรุณาบันทึกไฟล์ใหม่จากโปรแกรมต้นฉบับ");
+            throw new FileRejectedException("เนื้อไฟล์ไม่ตรงกับนามสกุล .{$extension} (ตรวจพบเป็น {$mime} — ไฟล์อาจถูกเปลี่ยนนามสกุล) กรุณาเปิดไฟล์ในโปรแกรมต้นฉบับแล้ว Save As เป็น .{$extension} ใหม่");
         }
 
         if (in_array($extension, ['docx', 'xlsx', 'pptx'], true)) {

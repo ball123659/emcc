@@ -2,6 +2,7 @@
 
 namespace App\Filament\Forms;
 
+use App\Filament\Forms\Components\BrowserFilteredFileUpload;
 use App\Services\Files\DocumentStorer;
 use App\Services\Files\FileRejectedException;
 use Filament\Forms\Components\FileUpload;
@@ -17,16 +18,13 @@ class DocumentUpload
     public static function make(string $name, string $directory): FileUpload
     {
         $maxKb = (int) config('emcc.files.max_upload_kb');
-        $accepted = array_values(array_unique(array_merge(
-            DocumentStorer::browserMimeTypes(),
-            ...array_values(DocumentStorer::ALLOWED),
-        )));
+        $accepted = DocumentStorer::browserMimeTypes();
 
-        return FileUpload::make($name)
+        return BrowserFilteredFileUpload::make($name)
             ->disk(DocumentStorer::DISK)
             ->directory($directory)
             ->visibility('private')
-            ->acceptedFileTypes($accepted)
+            ->browserAcceptedFileTypes($accepted)
             ->maxSize($maxKb)
             ->preventFilePathTampering(allowFilePathUsing: fn (string $file): bool => UploadedPathRegistry::allows($file))
             ->downloadable()
@@ -36,7 +34,6 @@ class DocumentUpload
             ->helperText('รองรับ '.DocumentStorer::extensionsLabel().' ไม่เกิน '.($maxKb / 1024).' MB (ไม่รับไฟล์ที่มี macro)')
             ->validationMessages([
                 'required' => 'กรุณาเลือกไฟล์',
-                'mimetypes' => 'ไม่รองรับไฟล์ชนิดนี้ รองรับเฉพาะ '.DocumentStorer::extensionsLabel(),
                 'max' => 'ไฟล์ใหญ่เกิน '.($maxKb / 1024).' MB',
             ])
             ->saveUploadedFileUsing(function (FileUpload $component, TemporaryUploadedFile $file) use ($directory): string {
