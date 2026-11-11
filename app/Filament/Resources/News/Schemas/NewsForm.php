@@ -6,7 +6,7 @@ use App\Filament\Forms\DocumentUpload;
 use App\Filament\Forms\ImageUpload;
 use App\Models\News;
 use App\Models\NewsCategory;
-use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\RichEditor;
@@ -189,14 +189,14 @@ class NewsForm
                     ->helperText(fn (Get $get) => match ($get('status')) {
                         News::STATUS_DRAFT => 'ร่าง — ยังไม่แสดงหน้าเว็บ',
                         News::STATUS_HIDDEN => 'ซ่อน — เคยเผยแพร่แล้วแต่ไม่แสดงหน้าเว็บ',
-                        default => 'แสดงหน้าเว็บเมื่อถึงวันเวลาเผยแพร่',
+                        default => 'แสดงหน้าเว็บตั้งแต่วันที่เผยแพร่',
                     }),
-                DateTimePicker::make('published_at')
-                    ->label('วันเวลาเผยแพร่')
+                DatePicker::make('published_at')
+                    ->label('วันที่เผยแพร่')
                     ->native(false)
-                    ->seconds(false)
-                    ->displayFormat('d/m/Y H:i')
-                    ->helperText('เว้นว่าง = เผยแพร่ทันทีที่บันทึก · ตั้งเป็นอนาคต = ตั้งเวลาเผยแพร่'),
+                    ->displayFormat('d/m/Y')
+                    ->closeOnDateSelection()
+                    ->helperText('เว้นว่าง = เผยแพร่วันนี้ · เลือกวันในอนาคต = ตั้งเวลาเผยแพร่ (ขึ้นหน้าเว็บตั้งแต่ 00:00 น. ของวันนั้น)'),
                 Select::make('category_id')
                     ->label('หมวดหมู่')
                     ->options(fn () => NewsCategory::query()->active()->ordered()->pluck('name_th', 'id')->all())

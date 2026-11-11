@@ -20,7 +20,7 @@ use Illuminate\Support\Str;
  * ข่าวประชาสัมพันธ์
  * - เนื้อหา rich text ถูกกรอง HTML (allowlist) ทุกครั้งที่บันทึก
  * - slug สร้างอัตโนมัติถ้าเว้นว่าง
- * - status = published + published_at ในอนาคต = ตั้งเวลาเผยแพร่
+ * - status = published + published_at (ระดับวัน) ในอนาคต = ตั้งเวลาเผยแพร่
  */
 class News extends Model
 {
@@ -95,8 +95,13 @@ class News extends Model
     protected static function booted(): void
     {
         static::saving(function (News $news): void {
+            // วันที่เผยแพร่เป็นระดับวัน (เวลา 00:00) — เผยแพร่โดยไม่ระบุวัน = วันนี้
             if ($news->status === self::STATUS_PUBLISHED && $news->published_at === null) {
-                $news->published_at = now();
+                $news->published_at = today();
+            }
+
+            if ($news->published_at !== null && $news->isDirty('published_at')) {
+                $news->published_at = $news->published_at->copy()->startOfDay();
             }
 
             if (blank($news->slug)) {

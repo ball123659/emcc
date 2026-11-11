@@ -47,8 +47,8 @@ class NewsTable
                     ->state(fn (News $record) => $record->trashed() ? 'ถูกลบ' : News::DISPLAY_LABELS[$record->displayStatus()])
                     ->color(fn (News $record) => $record->trashed() ? 'danger' : News::DISPLAY_COLORS[$record->displayStatus()]),
                 TextColumn::make('published_at')
-                    ->label('วันเผยแพร่')
-                    ->dateTime('d/m/Y H:i')
+                    ->label('วันที่เผยแพร่')
+                    ->date('d/m/Y')
                     ->placeholder('-')
                     ->sortable(),
                 TextColumn::make('view_count')
