@@ -28,7 +28,7 @@ class ImageUpload
             ->maxSize($maxKb)
             ->imagePreviewHeight('180')
             ->placeholder('ลากรูปมาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์')
-            ->preventFilePathTampering()
+            ->preventFilePathTampering(allowFilePathUsing: fn (string $file): bool => UploadedPathRegistry::allows($file))
             ->downloadable(false)
             ->openable()
             ->helperText("ขนาดแนะนำ {$recommendedSize} px · รองรับ JPG, PNG, WebP ไม่เกิน ".($maxKb / 1024).' MB · ระบบย่อและแปลงเป็น WebP ให้อัตโนมัติ')
@@ -40,7 +40,7 @@ class ImageUpload
             ])
             ->saveUploadedFileUsing(function (FileUpload $component, TemporaryUploadedFile $file) use ($directory, $withThumbnail): string {
                 try {
-                    return app(ImageProcessor::class)->store($file, $directory, $withThumbnail)->path;
+                    return UploadedPathRegistry::remember(app(ImageProcessor::class)->store($file, $directory, $withThumbnail)->path);
                 } catch (ImageRejectedException $e) {
                     throw ValidationException::withMessages([$component->getStatePath() => $e->getMessage()]);
                 }

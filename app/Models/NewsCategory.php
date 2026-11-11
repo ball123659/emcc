@@ -7,6 +7,7 @@ use App\Models\Concerns\LogsActivity;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class NewsCategory extends Model
 {
@@ -20,6 +21,25 @@ class NewsCategory extends Model
             'sort_order' => 'integer',
             'is_active' => 'boolean',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (NewsCategory $category): void {
+            if (! $category->sort_order) {
+                $category->sort_order = ((int) static::query()->max('sort_order')) + 1;
+            }
+        });
+
+        static::saving(function (NewsCategory $category): void {
+            $category->slug = Str::slug((string) ($category->slug ?: $category->name_en ?: Str::ascii((string) $category->name_th))) ?: Str::lower(Str::random(6));
+        });
+    }
+
+    /** หมวดที่ยังมีข่าว (รวมข่าวที่ถูกลบแบบกู้คืนได้) ลบไม่ได้ */
+    public function hasNews(): bool
+    {
+        return $this->news()->withTrashed()->exists();
     }
 
     public function news(): HasMany

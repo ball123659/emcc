@@ -54,7 +54,13 @@ trait LogsActivity
 
     protected static function activityFilter(array $attributes): array
     {
-        return ActivityLogger::sanitize(array_diff_key($attributes, array_flip(static::$activityIgnored)));
+        $attributes = ActivityLogger::sanitize(array_diff_key($attributes, array_flip(static::$activityIgnored)));
+
+        // ข้อความยาว (เช่นเนื้อหาข่าว) เก็บแค่ความยาว ไม่ให้ log บวม
+        return array_map(
+            fn ($value) => is_string($value) && mb_strlen($value) > 300 ? '[ข้อความยาว '.mb_strlen($value).' ตัวอักษร]' : $value,
+            $attributes,
+        );
     }
 
     /** ข้อความสั้น ๆ ที่ใช้ในบันทึก เช่น ชื่อข่าว / username */
