@@ -23,7 +23,6 @@ class SlideForm
                     ->schema([C::title()]),
 
                 Section::make('รูปภาพ')
-                    ->description('รูปภาษาไทยบังคับ — ถ้าไม่ใส่รูปภาษาอังกฤษหรือรูปมือถือ ระบบจะใช้รูปภาษาไทยแทน')
                     ->columns(3)
                     ->schema([
                         ImageUpload::make('image_th', 'slides', '1920 × 600')
@@ -34,7 +33,7 @@ class SlideForm
                         ImageUpload::make('image_mobile', 'slides', '800 × 800')
                             ->label('รูปสำหรับมือถือ'),
                         C::altTh()->columnSpan(['default' => 3, 'md' => 1]),
-                        C::altEn()->columnSpan(['default' => 3, 'md' => 2]),
+                        C::altEn()->columnSpan(['default' => 3, 'md' => 1]),
                     ]),
 
                 Section::make('ลิงก์เมื่อคลิกสไลด์')
