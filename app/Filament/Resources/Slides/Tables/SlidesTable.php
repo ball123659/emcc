@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Slides\Tables;
 
 use App\Filament\Resources\Concerns\HighlightFormComponents as C;
 use App\Filament\Resources\Concerns\QuickActions;
+use App\Filament\Resources\Concerns\SafeReorder;
 use App\Filament\Resources\Slides\SlideResource;
 use App\Models\Slide;
 use Filament\Actions\Action;
@@ -21,7 +22,7 @@ class SlidesTable
 {
     public static function configure(Table $table): Table
     {
-        return $table
+        return SafeReorder::configure($table, 'สไลด์')
             ->emptyStateIcon('heroicon-o-photo')
             ->emptyStateHeading('ยังไม่มีสไลด์')
             ->emptyStateDescription('สไลด์จะแสดงเป็นแบนเนอร์หมุนเวียนบนหน้าแรกของเว็บไซต์')
@@ -32,7 +33,6 @@ class SlidesTable
                     ->url(fn () => SlideResource::getUrl('create'))
                     ->visible(fn () => SlideResource::canCreate()),
             ])
-            ->reorderable('sort_order')
             ->defaultSort('sort_order')
             ->paginated([25, 50, 100])
             ->columns([

@@ -99,6 +99,19 @@ class News extends Model
             if ($news->hasTemporarySlug()) {
                 $news->slug = static::uniqueSlug(($news->published_at ?? now())->format('Y-m').'-'.$news->getKey(), $news);
                 $news->saveQuietly();
+
+                // log การสร้างถูกบันทึกก่อนได้ slug จริง -> แก้ให้ตรง
+                $log = ActivityLog::query()->where('subject_type', $news->getTable())->where('subject_id', $news->getKey())
+                    ->where('action', 'create')->latest('id')->first();
+
+                // ใช้ getAttribute: ใน Model ด้วยกัน $log->changes จะไปโดน property $changes ของ Eloquent แทนคอลัมน์
+                $changes = $log?->getAttribute('changes');
+
+                if (isset($changes['new'])) {
+                    $changes['new']['slug'] = $news->slug;
+                    $log->setAttribute('changes', $changes);
+                    $log->save();
+                }
             }
         });
 
@@ -181,10 +194,13 @@ class News extends Model
         return (bool) preg_match('/^\d{4}-\d{2}-tmp-[a-z0-9]{10}$/', (string) $this->slug);
     }
 
-    /** ข่าวที่เผยแพร่แล้วห้ามเปลี่ยน slug เพื่อไม่ให้ลิงก์ที่แชร์ไปแล้วเสีย */
+    /**
+     * ข่าวที่เคยเผยแพร่แล้วห้ามเปลี่ยน slug ตลอดไป (แม้จะซ่อนภายหลัง) เพื่อไม่ให้ลิงก์ที่แชร์ไปแล้วเสีย
+     * "เคยเผยแพร่" = สถานะไม่ใช่ร่าง และวันที่เผยแพร่มาถึงแล้ว
+     */
     public function isSlugLocked(): bool
     {
-        return $this->exists && $this->getOriginal('status') === self::STATUS_PUBLISHED
+        return $this->exists && $this->getOriginal('status') !== self::STATUS_DRAFT
             && $this->getOriginal('published_at') !== null
             && ! Carbon::parse($this->getOriginal('published_at'))->isFuture();
     }

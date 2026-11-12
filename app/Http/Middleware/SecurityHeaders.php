@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -17,7 +18,12 @@ class SecurityHeaders
     public function handle(Request $request, Closure $next): Response
     {
         if (app()->isProduction() && ! $request->isSecure() && config('emcc.force_https')) {
-            return redirect()->to('https://'.$request->getHttpHost().$request->getRequestUri(), 301);
+            // อยู่หลัง proxy ที่ทำ HTTPS ให้แล้วแต่ยังไม่ได้ตั้ง TRUSTED_PROXIES -> ห้าม redirect (จะวนไม่จบ)
+            if (strtolower((string) $request->headers->get('X-Forwarded-Proto')) === 'https') {
+                Log::warning('ได้รับคำขอผ่าน proxy ที่เป็น HTTPS แต่ยังไม่ได้ตั้ง TRUSTED_PROXIES — ข้ามการ redirect เพื่อกันวนไม่จบ (ตั้งค่าใน .env)');
+            } else {
+                return redirect()->to('https://'.$request->getHttpHost().$request->getRequestUri(), 301);
+            }
         }
 
         $response = $next($request);
@@ -36,6 +42,11 @@ class SecurityHeaders
 
         if (! $headers->has('Content-Security-Policy')) {
             $headers->set('Content-Security-Policy', "frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'");
+        }
+
+        // หลังบ้านห้ามติดในผลค้นหา
+        if ($request->is('backend', 'backend/*')) {
+            $headers->set('X-Robots-Tag', 'noindex, nofollow');
         }
 
         if ($request->isSecure()) {

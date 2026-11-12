@@ -49,8 +49,7 @@ class CategorySchema
 
     public static function table(Table $table, string $countRelation, string $countLabel): Table
     {
-        return $table
-            ->reorderable('sort_order')
+        return SafeReorder::configure($table, 'หมวดหมู่')
             ->defaultSort('sort_order')
             ->paginated(false)
             ->columns([

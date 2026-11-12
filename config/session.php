@@ -169,7 +169,8 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    // โปรดักชันเป็น Secure เสมอ (ส่งเฉพาะ HTTPS) เว้นแต่ตั้ง SESSION_SECURE_COOKIE เอง
+    'secure' => env('SESSION_SECURE_COOKIE', env('APP_ENV') === 'production'),
 
     /*
     |--------------------------------------------------------------------------

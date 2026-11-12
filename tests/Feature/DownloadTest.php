@@ -230,6 +230,8 @@ class DownloadTest extends TestCase
 
         $user->permissions()->whereHas('page', fn ($q) => $q->where('code', 'downloads'))->update(['can_view' => true]);
 
+        $user->forgetPagePermissions(); // ในระบบจริงแต่ละคำขอโหลดผู้ใช้ใหม่
+
         $this->get('/backend/downloads')->assertOk();
         $this->get('/backend/download-categories')->assertOk();
         $this->get('/backend/news')->assertForbidden();

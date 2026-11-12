@@ -68,7 +68,7 @@ trait LogsActivity
     {
         $attributes = $model->getAttributes();
 
-        foreach (['username', 'title_th', 'title', 'name_th', 'label_th', 'key'] as $field) {
+        foreach (['username', 'title_th', 'title', 'name_th', 'label_th', 'key', 'caption_th', 'original_name'] as $field) {
             if (filled($attributes[$field] ?? null)) {
                 return (string) $attributes[$field];
             }

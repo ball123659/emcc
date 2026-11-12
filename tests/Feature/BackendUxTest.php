@@ -42,6 +42,7 @@ class BackendUxTest extends TestCase
         UserPagePermission::where('user_id', $user->id)
             ->whereIn('page_id', fn ($q) => $q->select('id')->from('pages')->whereIn('code', $codes))
             ->update(['can_view' => true]);
+        $user->forgetPagePermissions(); // ในระบบจริงแต่ละคำขอโหลดผู้ใช้ใหม่
     }
 
     private function news(array $attributes = []): News

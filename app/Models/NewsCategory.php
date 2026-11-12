@@ -33,6 +33,7 @@ class NewsCategory extends Model
 
         static::saving(function (NewsCategory $category): void {
             $base = Str::slug((string) ($category->slug ?: $category->name_en ?: Str::ascii((string) $category->name_th))) ?: Str::lower(Str::random(6));
+            $base = rtrim(Str::substr($base, 0, 90), '-'); // คอลัมน์ slug ยาวได้ 100 — เผื่อที่ให้ -2, -3 ...
             $slug = $base;
             $i = 2;
 

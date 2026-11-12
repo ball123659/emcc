@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Popups\Tables;
 
 use App\Filament\Resources\Concerns\HighlightFormComponents as C;
 use App\Filament\Resources\Concerns\QuickActions;
+use App\Filament\Resources\Concerns\SafeReorder;
 use App\Filament\Resources\Popups\PopupResource;
 use App\Models\Popup;
 use Filament\Actions\Action;
@@ -21,7 +22,7 @@ class PopupsTable
 {
     public static function configure(Table $table): Table
     {
-        return $table
+        return SafeReorder::configure($table, ' Popup ')
             ->emptyStateIcon('heroicon-o-window')
             ->emptyStateHeading('ไม่มี Popup ในรายการนี้')
             ->emptyStateDescription('Popup จะแสดงเมื่อผู้ชมเปิดหน้าแรก ตามช่วงวันที่ที่กำหนด')
@@ -32,7 +33,6 @@ class PopupsTable
                     ->url(fn () => PopupResource::getUrl('create'))
                     ->visible(fn () => PopupResource::canCreate()),
             ])
-            ->reorderable('sort_order')
             ->defaultSort('sort_order')
             ->paginated([25, 50, 100])
             ->columns([

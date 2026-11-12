@@ -6,11 +6,14 @@ use App\Services\VirusScan\VirusScanner;
 use App\Services\VirusScan\VirusScannerFactory;
 use App\Support\ActivityLogger;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Console\ServeCommand;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -30,6 +33,19 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // reverse proxy ที่เชื่อถือ (ต้องอ่านจาก config ไม่ใช่ env() ใน bootstrap/app.php)
+        if (filled($proxies = config('emcc.trusted_proxies'))) {
+            TrustProxies::at($proxies === '*' ? '*' : array_map('trim', explode(',', (string) $proxies)));
+        }
+
+        // trim ทุกช่องข้อความก่อน validate และก่อนบันทึก (ช่องว่างล้วน = ว่าง) — ยกเว้นช่องรหัสผ่าน
+        $trim = static fn (mixed $state): mixed => is_string($state) ? (trim($state) === '' ? null : trim($state)) : $state;
+        TextInput::configureUsing(function (TextInput $input) use ($trim): void {
+            $input->mutateStateForValidationUsing(fn (TextInput $component, mixed $state) => $component->isPassword() ? $state : $trim($state))
+                ->mutateDehydratedStateUsing(fn (TextInput $component, mixed $state) => $component->isPassword() ? $state : $trim($state));
+        });
+        Textarea::configureUsing(fn (Textarea $input) => $input->mutateStateForValidationUsing($trim)->mutateDehydratedStateUsing($trim));
+
         // Livewire เก็บไฟล์อัปโหลดชั่วคราวก่อน (ค่าเริ่มต้นจำกัด 12 MB) — ให้เท่ากับขนาดไฟล์สูงสุดของระบบ
         config([
             'livewire.temporary_file_upload.rules' => ['required', 'file', 'max:'.max(

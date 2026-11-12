@@ -9,6 +9,7 @@ use App\Services\Files\DownloadResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -20,8 +21,11 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class DownloadController extends Controller
 {
-    public function __invoke(Request $request, int $download): StreamedResponse|RedirectResponse
+    public function __invoke(Request $request, string $download): StreamedResponse|RedirectResponse
     {
+        // รับเฉพาะเลขที่อยู่ในช่วงของ BIGINT (กันตัวเลขยาวเกินทำให้ error 500)
+        abort_unless(preg_match('/^[1-9][0-9]{0,17}$/', $download) === 1, 404);
+
         $item = Download::withTrashed()->find($download);
         $user = Auth::user();
         $canPreview = $user instanceof User && $user->is_active && $user->canViewPage('downloads');
@@ -52,18 +56,37 @@ class DownloadController extends Controller
         );
     }
 
+    /**
+     * นับยอดดาวน์โหลดแบบกันซ้ำ: ไม่นับคำขอ HEAD และบอท, นับ 1 ครั้งต่อ session
+     * และ 1 ครั้งต่อ IP ต่อไฟล์ต่อชั่วโมง (กันคนหรือบอทที่ไม่เก็บ cookie)
+     */
     private function countOnce(Request $request, Download $item): void
     {
-        $key = 'downloaded.'.$item->id;
+        if (! $request->isMethod('GET') || self::isBot((string) $request->userAgent())) {
+            return;
+        }
 
-        if ($request->hasSession() && $request->session()->has($key)) {
+        $sessionKey = 'downloaded.'.$item->id;
+
+        if ($request->hasSession() && $request->session()->has($sessionKey)) {
+            return;
+        }
+
+        if ($request->hasSession()) {
+            $request->session()->put($sessionKey, true);
+        }
+
+        // Cache::add คืน false ถ้ามีคีย์อยู่แล้ว (IP นี้นับไฟล์นี้ไปแล้วในชั่วโมงนี้)
+        if (! Cache::add('download-count:'.$item->id.':'.sha1((string) $request->ip()), true, now()->addHour())) {
             return;
         }
 
         Download::withoutTimestamps(fn () => Download::query()->whereKey($item->id)->increment('download_count'));
+    }
 
-        if ($request->hasSession()) {
-            $request->session()->put($key, true);
-        }
+    public static function isBot(string $userAgent): bool
+    {
+        return $userAgent === ''
+            || preg_match('/bot|crawl|spider|slurp|facebookexternalhit|preview|monitor|curl|wget|python-requests|httpclient|headless/i', $userAgent) === 1;
     }
 }

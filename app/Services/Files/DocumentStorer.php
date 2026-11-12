@@ -2,6 +2,7 @@
 
 namespace App\Services\Files;
 
+use App\Services\VirusScan\NullScanner;
 use App\Services\VirusScan\ScanResult;
 use App\Services\VirusScan\VirusScanner;
 use Illuminate\Http\UploadedFile;
@@ -89,8 +90,13 @@ class DocumentStorer
         }
 
         $originalName = $file instanceof UploadedFile ? $file->getClientOriginalName() : $file->getFilename();
-        $originalName = Str::limit(trim(preg_replace('/[\x00-\x1F\x7F\/\\\\]+/u', '', $originalName)), 200, '');
+        $originalName = trim(preg_replace('/[\x00-\x1F\x7F\/\\\\]+/u', '', $originalName));
         $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+
+        // ชื่อยาวเกิน: ตัดเฉพาะชื่อ คงนามสกุลไว้ (คอลัมน์ original_name ยาวได้ 255)
+        if (mb_strlen($originalName) > 200) {
+            $originalName = Str::substr(pathinfo($originalName, PATHINFO_FILENAME), 0, 190).($extension !== '' ? '.'.$extension : '');
+        }
 
         if (! array_key_exists($extension, self::ALLOWED)) {
             throw new FileRejectedException('ไม่รองรับไฟล์ชนิดนี้ รองรับเฉพาะ '.self::extensionsLabel().' (ไม่รับไฟล์ที่มี macro เช่น .docm .xlsm)');
@@ -114,6 +120,10 @@ class DocumentStorer
 
         if (in_array($extension, ['docx', 'xlsx', 'pptx'], true)) {
             $this->assertOfficeWithoutMacro($path);
+        }
+
+        if ($this->scanner instanceof NullScanner && NullScanner::blocksUploads()) {
+            throw new FileRejectedException('ระบบยังไม่ได้ตั้งค่าโปรแกรมสแกนไวรัส จึงยังรับไฟล์ไม่ได้ กรุณาแจ้งผู้ดูแลระบบ (ตั้ง VIRUS_SCANNER ใน .env)');
         }
 
         $scan = $this->scanner->scan($path);

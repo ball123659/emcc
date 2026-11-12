@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasBilingualFields;
+use App\Models\Concerns\LogsActivity;
 use App\Services\Files\DocumentStorer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -14,7 +15,7 @@ use Illuminate\Support\Facades\Storage;
  */
 class NewsAttachment extends Model
 {
-    use HasBilingualFields;
+    use HasBilingualFields, LogsActivity;
 
     protected $fillable = [
         'news_id',

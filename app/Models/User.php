@@ -164,6 +164,9 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->locked_until !== null && $this->locked_until->isFuture();
     }
 
+    /** รหัสหน้าที่ผู้ใช้เห็น (จำไว้ทั้งคำขอ — เมนู/ปุ่มเรียกตรวจสิทธิ์หลายสิบครั้งต่อหน้า) */
+    private ?array $visiblePageCodes = null;
+
     /** ตรวจสิทธิ์เห็นหน้า ตาม pages.code */
     public function canViewPage(string $code): bool
     {
@@ -171,11 +174,28 @@ class User extends Authenticatable implements FilamentUser, HasName
             return true;
         }
 
-        return $this->pages()
-            ->where('pages.code', $code)
+        $this->visiblePageCodes ??= $this->pages()
             ->where('pages.admin_only', false)
             ->wherePivot('can_view', true)
-            ->exists();
+            ->pluck('pages.code')
+            ->all();
+
+        return in_array($code, $this->visiblePageCodes, true);
+    }
+
+    /** ล้างสิทธิ์ที่จำไว้ (หลังแก้สิทธิ์) */
+    public function forgetPagePermissions(): static
+    {
+        $this->visiblePageCodes = null;
+
+        return $this;
+    }
+
+    public function refresh(): static
+    {
+        $this->forgetPagePermissions();
+
+        return parent::refresh();
     }
 
     public function pages(): BelongsToMany

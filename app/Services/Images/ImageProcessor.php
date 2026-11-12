@@ -2,6 +2,7 @@
 
 namespace App\Services\Images;
 
+use App\Services\VirusScan\NullScanner;
 use App\Services\VirusScan\ScanResult;
 use App\Services\VirusScan\VirusScanner;
 use GdImage;
@@ -51,6 +52,10 @@ class ImageProcessor
         }
 
         $this->ensureResources($info[0], $info[1]);
+
+        if ($this->scanner instanceof NullScanner && NullScanner::blocksUploads()) {
+            throw new ImageRejectedException('ระบบยังไม่ได้ตั้งค่าโปรแกรมสแกนไวรัส จึงยังรับไฟล์ไม่ได้ กรุณาแจ้งผู้ดูแลระบบ (ตั้ง VIRUS_SCANNER ใน .env)');
+        }
 
         $scan = $this->scanner->scan($path);
 

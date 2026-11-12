@@ -10,6 +10,9 @@ return [
     // รหัสผ่านใหม่ต้องยาวอย่างน้อย
     'password_min_length' => 6,
 
+    // IP ของ reverse proxy / load balancer ที่เชื่อถือ (คั่นด้วย , หรือ *) — ได้ IP จริงของผู้ใช้และรู้ว่าเป็น HTTPS
+    'trusted_proxies' => env('TRUSTED_PROXIES'),
+
     // โปรดักชัน: เปิดด้วย http ให้ redirect ไป https (ปิดได้ถ้า IIS/proxy redirect ให้แล้ว)
     'force_https' => (bool) env('FORCE_HTTPS', true),
 

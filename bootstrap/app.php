@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\BlockUnusedRoutes;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -13,12 +14,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // อยู่หลัง reverse proxy / load balancer: ใส่ IP ของ proxy ใน TRUSTED_PROXIES (คั่นด้วย , หรือ * )
-        // เพื่อให้ได้ IP จริงของผู้ใช้ (log, การจำกัดจำนวนครั้ง) และรู้ว่าเป็น HTTPS
-        if (filled($proxies = env('TRUSTED_PROXIES'))) {
-            $middleware->trustProxies(at: $proxies === '*' ? '*' : array_map('trim', explode(',', $proxies)));
-        }
+        // TRUSTED_PROXIES อ่านจาก config/emcc.php ตอนรับคำขอ (ใน AppServiceProvider)
+        // ห้ามใช้ env() ตรงนี้: ไฟล์นี้ทำงานก่อนโหลด .env และหลัง php artisan optimize ก็ไม่อ่าน .env อีก
 
+        $middleware->prepend(BlockUnusedRoutes::class);
         $middleware->append(SecurityHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -74,6 +74,7 @@ class NewsForm
                             ->required()
                             ->toolbarButtons(self::TOOLBAR)
                             ->extraInputAttributes(['style' => 'min-height: 18rem'])
+                            ->belowContent('รูปภาพให้เพิ่มในส่วน "แกลเลอรีรูป" ด้านล่าง — รูปที่วางหรือลากลงในเนื้อหาจะถูกนำออกตอนบันทึก')
                             ->validationMessages(['required' => 'กรุณากรอกเนื้อหาข่าวภาษาไทย']),
                     ]),
                     Tab::make('English')->schema([
@@ -88,7 +89,8 @@ class NewsForm
                         RichEditor::make('content_en')
                             ->label('เนื้อหา (อังกฤษ)')
                             ->toolbarButtons(self::TOOLBAR)
-                            ->extraInputAttributes(['style' => 'min-height: 18rem']),
+                            ->extraInputAttributes(['style' => 'min-height: 18rem'])
+                            ->belowContent('รูปภาพให้เพิ่มในส่วน "แกลเลอรีรูป" ด้านล่าง — รูปที่วางหรือลากลงในเนื้อหาจะถูกนำออกตอนบันทึก'),
                     ]),
                 ]),
             ]);

@@ -63,6 +63,7 @@ class UserPermissions
             );
         }
 
+        $user->forgetPagePermissions();
         $after = static::visibleCodes($user);
 
         if ($before !== $after) {

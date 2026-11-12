@@ -16,11 +16,11 @@ Route::get('/media/{path}', [MediaController::class, 'show'])
 
 // ไฟล์แนบข่าว (ดาวน์โหลดผ่าน controller เท่านั้น)
 Route::get('/news/attachments/{attachment}', NewsAttachmentController::class)
-    ->whereNumber('attachment')
+    ->where('attachment', '[1-9][0-9]{0,17}')
     ->name('news.attachment');
 
 // ไฟล์ดาวน์โหลด / ลิงก์ภายนอก (ลิงก์คงที่ตาม id)
 Route::get('/downloads/{download}', DownloadController::class)
-    ->whereNumber('download')
+    ->where('download', '[0-9]+')
     ->middleware('throttle:60,1')
     ->name('downloads.show');

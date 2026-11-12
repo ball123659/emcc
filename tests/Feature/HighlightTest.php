@@ -289,6 +289,7 @@ class HighlightTest extends TestCase
         UserPagePermission::where('user_id', $user->id)
             ->whereIn('page_id', fn ($q) => $q->select('id')->from('pages')->where('code', 'slides'))
             ->update(['can_view' => true]);
+        $user->forgetPagePermissions(); // ในระบบจริงแต่ละคำขอโหลดผู้ใช้ใหม่
 
         $this->get('/backend/slides')->assertOk();
         $this->get('/backend/slides/create')->assertOk();

@@ -57,6 +57,22 @@ class UserForm
                                 'email' => 'รูปแบบอีเมลไม่ถูกต้อง ตัวอย่าง name@example.com',
                                 'unique' => 'อีเมลนี้มีผู้ใช้อื่นใช้แล้ว (รวมถึงบัญชีที่ถูกลบ) กรุณาใช้อีเมลอื่น',
                             ]),
+                        // แก้อีเมลของตัวเองต้องยืนยันรหัสผ่าน (กติกาเดียวกับหน้าโปรไฟล์)
+                        TextInput::make('current_password')
+                            ->label('รหัสผ่านปัจจุบันของคุณ')
+                            ->password()
+                            ->revealable()
+                            ->autocomplete('current-password')
+                            ->currentPassword()
+                            ->required()
+                            ->dehydrated(false)
+                            ->visible(fn (?User $record, Get $get) => $isSelf($record) && filled($get('email'))
+                                && mb_strtolower(trim((string) $get('email'))) !== $record->email)
+                            ->helperText('เปลี่ยนอีเมลของตัวเองต้องยืนยันรหัสผ่าน')
+                            ->validationMessages([
+                                'required' => 'กรุณากรอกรหัสผ่านปัจจุบันเพื่อยืนยันการเปลี่ยนอีเมล',
+                                'current_password' => 'รหัสผ่านปัจจุบันไม่ถูกต้อง',
+                            ]),
                         TextInput::make('first_name')
                             ->label('ชื่อ')
                             ->required()

@@ -69,6 +69,8 @@ class DatabaseSetupTest extends TestCase
 
         UserPagePermission::where('user_id', $user->id)->update(['can_view' => true]);
 
+        $user->forgetPagePermissions(); // ในระบบจริงแต่ละคำขอโหลดผู้ใช้ใหม่
+
         $this->assertTrue($user->canViewPage('news'));
         $this->assertFalse($user->canViewPage('users'), 'หน้า admin_only ให้สิทธิ์ user ไม่ได้');
     }

@@ -32,9 +32,9 @@ APP_URL=https://<โดเมนจริง>
 DB_DATABASE=webemcc
 DB_USERNAME=...
 DB_PASSWORD=...
-SESSION_SECURE_COOKIE=true
-VIRUS_SCANNER=defender      # Linux: clamav
-# TRUSTED_PROXIES=10.0.0.5  # ถ้าอยู่หลัง reverse proxy / load balancer
+VIRUS_SCANNER=defender      # Linux: clamav — ถ้าเป็น none ระบบจะไม่รับไฟล์อัปโหลดในโปรดักชัน
+# TRUSTED_PROXIES=10.0.0.5  # ถ้าอยู่หลัง reverse proxy / load balancer ที่ทำ HTTPS ให้ (จำเป็น ไม่งั้น redirect https ไม่ทำงาน)
+# LOG_LEVEL / SESSION_SECURE_COOKIE ไม่ต้องตั้ง — โปรดักชันเป็น warning / Secure อัตโนมัติ
 ```
 
 ฐานข้อมูล (เลือกอย่างใดอย่างหนึ่ง):
@@ -67,6 +67,27 @@ php artisan migrate --force
 php artisan optimize:clear
 php artisan optimize        # โปรดักชันเท่านั้น — เครื่อง dev ไม่ต้องรัน (ถ้ารันแล้ว pull โค้ดใหม่ เมนู/วิดเจ็ตใหม่จะไม่แสดง)
 ```
+
+## สำรองข้อมูล (backup)
+สิ่งที่ต้องสำรอง **ทั้งสองอย่างคู่กัน** (ฐานข้อมูลเก็บแค่ path ไฟล์จริงอยู่ในโฟลเดอร์):
+1. ฐานข้อมูล `webemcc`
+2. โฟลเดอร์ `storage/app/private` (รูป ข่าว ไฟล์แนบ ไฟล์ดาวน์โหลด)
+3. ไฟล์ `.env` (มี `APP_KEY` — ถ้าหาย session/ข้อมูลที่เข้ารหัสใช้ไม่ได้) เก็บแยกในที่ปลอดภัย
+
+ตัวอย่างสำรองรายวัน (ตั้งใน Task Scheduler / cron เวลากลางคืน):
+```bat
+:: Windows (XAMPP/MySQL) — ปรับ path ให้ตรงเครื่อง
+set D=%date:~-4%%date:~3,2%%date:~0,2%
+"C:\xampp\mysql\bin\mysqldump.exe" -u backup -p*** --single-transaction --routines webemcc > D:\backup\webemcc-%D%.sql
+robocopy C:\inetpub\emcc\storage\app\private D:\backup\files-%D% /MIR
+```
+```bash
+# Linux
+mysqldump --single-transaction webemcc | gzip > /backup/webemcc-$(date +%F).sql.gz
+tar czf /backup/files-$(date +%F).tar.gz -C /var/www/emcc/storage/app private
+```
+- ใช้บัญชีฐานข้อมูลสำหรับสำรองที่มีสิทธิ์อ่านอย่างเดียว เก็บสำรองไว้ **นอกเครื่องเซิร์ฟเวอร์** อย่างน้อย 30 วัน
+- ทดลองกู้คืนอย่างน้อยปีละครั้ง: import SQL ลงฐานทดสอบ + คัดลอกไฟล์กลับ แล้วเปิดหลังบ้านดูรูป/ไฟล์ได้ครบ
 
 ## หลังติดตั้ง
 - ล็อกอิน `/backend` ด้วย `developer` / `passwordemcc` แล้วตั้งรหัสใหม่

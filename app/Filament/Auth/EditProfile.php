@@ -37,6 +37,14 @@ class EditProfile extends BaseEditProfile
         return $this->mustChangePassword() ? 'ตั้งรหัสผ่านใหม่' : 'โปรไฟล์ของฉัน';
     }
 
+    /** developer / administrator แก้ username ตัวเองได้ (ผู้ใช้ทั่วไปต้องให้ผู้ดูแลระบบแก้) */
+    public function canChangeUsername(): bool
+    {
+        $user = $this->getUser();
+
+        return $user instanceof User && $user->isAdmin();
+    }
+
     public function mustChangePassword(): bool
     {
         return (bool) $this->getUser()->must_change_password;
@@ -52,11 +60,23 @@ class EditProfile extends BaseEditProfile
 
             Section::make('ข้อมูลส่วนตัว')
                 ->schema([
+                    // developer / administrator เปลี่ยน username ตัวเองได้, ผู้ใช้ทั่วไปให้ผู้ดูแลระบบเปลี่ยนให้
                     TextInput::make('username')
                         ->label('ชื่อผู้ใช้ (Username)')
-                        ->disabled()
-                        ->dehydrated(false)
-                        ->helperText('เปลี่ยนชื่อผู้ใช้ได้โดยผู้ดูแลระบบเท่านั้น'),
+                        ->disabled(fn () => ! $this->canChangeUsername())
+                        ->dehydrated(fn () => $this->canChangeUsername())
+                        ->required(fn () => $this->canChangeUsername())
+                        ->maxLength(50)
+                        ->regex('/^\s*[a-zA-Z0-9._-]+\s*$/')
+                        ->unique(ignoreRecord: true)
+                        ->helperText(fn () => $this->canChangeUsername()
+                            ? 'ใช้ได้เฉพาะ a-z, 0-9, จุด (.), ขีดล่าง (_) และขีด (-) · ใช้ชื่อใหม่ตอนเข้าสู่ระบบครั้งถัดไป'
+                            : 'ต้องการเปลี่ยนชื่อผู้ใช้ กรุณาติดต่อผู้ดูแลระบบ')
+                        ->validationMessages([
+                            'required' => 'กรุณากรอกชื่อผู้ใช้',
+                            'regex' => 'ชื่อผู้ใช้ใช้ได้เฉพาะ a-z, 0-9, จุด, ขีดล่าง และขีด (ห้ามมีช่องว่างหรือภาษาไทย)',
+                            'unique' => 'ชื่อผู้ใช้นี้ถูกใช้แล้ว (รวมถึงบัญชีที่ถูกลบ) กรุณาใช้ชื่ออื่น',
+                        ]),
                     TextInput::make('first_name')
                         ->label('ชื่อ')
                         ->required()
@@ -159,7 +179,13 @@ class EditProfile extends BaseEditProfile
     protected function handleRecordUpdate(Model $record, #[SensitiveParameter] array $data): Model
     {
         /** @var User $record */
-        $data = array_intersect_key($data, array_flip(['first_name', 'last_name', 'email', 'phone', 'position', 'password']));
+        $allowed = ['first_name', 'last_name', 'email', 'phone', 'position', 'password'];
+
+        if ($this->canChangeUsername()) {
+            $allowed[] = 'username';
+        }
+
+        $data = array_intersect_key($data, array_flip($allowed));
 
         if (array_key_exists('password', $data)) {
             $data['must_change_password'] = false;

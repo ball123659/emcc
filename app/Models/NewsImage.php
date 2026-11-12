@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\HasBilingualFields;
 use App\Models\Concerns\HasImageFiles;
+use App\Models\Concerns\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
@@ -13,7 +14,7 @@ use Illuminate\Support\Facades\Storage;
  */
 class NewsImage extends Model
 {
-    use HasBilingualFields, HasImageFiles;
+    use HasBilingualFields, HasImageFiles, LogsActivity;
 
     protected static array $imageFields = ['image_path'];
 

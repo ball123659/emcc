@@ -56,6 +56,7 @@ class ActivityLogResource extends Resource
         'password_reset' => 'รีเซ็ตรหัสผ่าน',
         'unlock' => 'ปลดล็อกบัญชี',
         'permission_update' => 'แก้สิทธิ์รายหน้า',
+        'reorder' => 'เรียงลำดับ',
     ];
 
     public static function table(Table $table): Table

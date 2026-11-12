@@ -103,8 +103,10 @@ class CheckEnvironment extends Command
 
         // สแกนไวรัส
         $driver = config('emcc.virus_scanner.driver');
-        if ($driver === 'none') {
-            $this->warn('  ! VIRUS_SCANNER=none — ไม่สแกนไวรัส (ใช้ได้เฉพาะเครื่องพัฒนา)');
+        if ($driver === 'none' && app()->isProduction()) {
+            $this->check('ตั้งค่าโปรแกรมสแกนไวรัส (VIRUS_SCANNER)', false, 'โปรดักชันต้องตั้ง VIRUS_SCANNER=defender (Windows) หรือ clamav (Linux) — ตอนนี้ระบบจะไม่รับไฟล์อัปโหลดเลย');
+        } elseif ($driver === 'none') {
+            $this->warn('  ! VIRUS_SCANNER=none — ไม่สแกนไวรัส (ใช้ได้เฉพาะเครื่องพัฒนา โปรดักชันจะไม่รับไฟล์)');
         } else {
             $binary = config("emcc.virus_scanner.{$driver}_binary");
             $found = $driver === 'clamav' ? $this->commandExists($binary) : is_file((string) $binary);

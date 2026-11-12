@@ -149,6 +149,7 @@ class UserManagementTest extends TestCase
     {
         $user = User::factory()->create();
         UserPagePermission::where('user_id', $user->id)->update(['can_view' => true]);
+        $user->forgetPagePermissions(); // ในระบบจริงแต่ละคำขอโหลดผู้ใช้ใหม่
 
         $this->actingAs($user);
         $this->get('/backend/users')->assertForbidden();

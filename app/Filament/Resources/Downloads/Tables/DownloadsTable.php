@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Downloads\Tables;
 
+use App\Filament\Resources\Concerns\SafeReorder;
 use App\Filament\Resources\Downloads\DownloadResource;
 use App\Models\Download;
 use App\Models\DownloadCategory;
@@ -21,7 +22,7 @@ class DownloadsTable
 {
     public static function configure(Table $table): Table
     {
-        return $table
+        return SafeReorder::configure($table, 'ไฟล์ดาวน์โหลด')
             ->emptyStateIcon('heroicon-o-arrow-down-tray')
             ->emptyStateHeading('ยังไม่มีไฟล์ดาวน์โหลด')
             ->emptyStateDescription('อัปโหลดเอกสาร รายงาน หรือใส่ลิงก์ภายนอกให้ผู้ชมดาวน์โหลด')
@@ -33,7 +34,6 @@ class DownloadsTable
                     ->visible(fn () => DownloadResource::canCreate()),
             ])
             ->modifyQueryUsing(fn (Builder $query) => $query->with('category'))
-            ->reorderable('sort_order')
             ->defaultSort('sort_order')
             ->paginated([25, 50, 100])
             ->columns([

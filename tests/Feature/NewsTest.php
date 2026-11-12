@@ -378,6 +378,8 @@ class NewsTest extends TestCase
 
         $user->permissions()->whereHas('page', fn ($q) => $q->where('code', 'news'))->update(['can_view' => true]);
 
+        $user->forgetPagePermissions(); // ในระบบจริงแต่ละคำขอโหลดผู้ใช้ใหม่
+
         $this->get('/backend/news')->assertOk();
         $this->get('/backend/news/create')->assertOk();
         $this->get('/backend/news-categories')->assertOk();

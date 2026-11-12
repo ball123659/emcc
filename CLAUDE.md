@@ -8,7 +8,7 @@
 - **MySQL** ฐานข้อมูลชื่อ `webemcc`, `utf8mb4` / `utf8mb4_general_ci`, เวลา Asia/Bangkok
 - เซิร์ฟเวอร์จริง "น่าจะ" เป็น Windows Server + IIS (ยังไม่ยืนยัน) → โค้ดต้องรันได้ทั้ง Windows และ Linux
   ห้ามพึ่งของที่มีแค่บน Linux; งานตั้งเวลาใช้ Laravel scheduler (บน Windows รันผ่าน Task Scheduler)
-- PHP 8.2+
+- PHP 8.3+ (Laravel 13 ต้องการ 8.3)
 
 ## ฐานข้อมูล
 - โครงสร้างต้นฉบับ: `database/webemcc.sql` (import เข้า MySQL 8 / MariaDB 10.4+ แล้ว ใช้ได้) — ไม่มี trigger / stored procedure
