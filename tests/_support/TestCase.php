@@ -142,6 +142,7 @@ abstract class TestCase extends CIUnitTestCase
     protected function actingAs(array $user): static
     {
         $user = (new UserModel())->withDeleted()->find($user['id']);
+        $_COOKIE[config('Session')->cookieName] = 'test-session'; // เบราว์เซอร์ที่ล็อกอินอยู่ส่ง cookie session มาเสมอ
 
         return $this->withSession(['auth_user_id' => (int) $user['id'], 'auth_hash' => Auth::passwordFingerprint($user)]);
     }

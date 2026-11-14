@@ -146,8 +146,8 @@ class Users extends BackendController
 
             if ($current === '') {
                 $errors['current_password'] = 'กรุณากรอกรหัสผ่านปัจจุบันเพื่อยืนยันการเปลี่ยนอีเมล';
-            } elseif (! password_verify($current, (string) $user['password'])) {
-                $errors['current_password'] = 'รหัสผ่านปัจจุบันไม่ถูกต้อง';
+            } elseif (($error = $this->auth->verifyCurrentPassword($user, $current)) !== null) {
+                $errors['current_password'] = $error;
             }
         }
 

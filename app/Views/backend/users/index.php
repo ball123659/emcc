@@ -49,7 +49,7 @@ $base = site_url('backend/users');
                     (bool) $u['must_change_password'] => ['รอเปลี่ยนรหัส', 'warning'],
                     default                     => ['ปกติ', 'success'],
                 };
-                $extra = [];
+                $extra = [['label' => 'ดูบันทึกการใช้งาน', 'url' => site_url('backend/activity-logs?user=' . $u['id']), 'icon' => 'clock', 'link' => true]];
                 if ($manage && ! $self && ! $trashed) {
                     $extra[] = ['label' => 'รีเซ็ตรหัสผ่าน', 'url' => site_url('backend/users/' . $u['id'] . '/reset-password'), 'icon' => 'key', 'confirm' => 'รหัสผ่านจะกลับเป็นค่าเริ่มต้น และผู้ใช้ต้องตั้งรหัสใหม่ตอนเข้าสู่ระบบครั้งถัดไป', 'ok' => 'รีเซ็ตรหัสผ่าน', 'variant' => 'warning'];
                     if (UserModel::isLocked($u)) {
@@ -67,10 +67,10 @@ $base = site_url('backend/users');
                     <td class="nowrap"><?= $u['last_login_at'] ? esc(th_datetime($u['last_login_at'])) : '<span class="muted">ยังไม่เคย</span>' ?></td>
                     <td class="cell-actions">
                         <?php if ($manage && ! $trashed): ?><a class="link-btn" href="<?= site_url('backend/users/' . $u['id'] . '/edit') ?>"><?= icon('pencil-square') ?> แก้ไข</a><?php endif ?>
-                        <?php if ($manage): ?>
+                        <?php if ($manage || $extra !== []): ?>
                         <?= partial('partials/row_menu', [
-                            'base' => site_url('backend/users/' . $u['id']), 'trashed' => $trashed, 'label' => $u['username'],
-                            'canDelete' => ! $self, 'extra' => $extra,
+                            'base' => site_url('backend/users/' . $u['id']), 'trashed' => $trashed && $manage, 'label' => $u['username'],
+                            'canDelete' => ! $self && $manage, 'extra' => $extra,
                         ]) ?>
                         <?php endif ?>
                     </td>

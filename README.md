@@ -50,7 +50,8 @@ php spark emcc:check
 - **ไม่ใช้ trigger** (MariaDB 10.4 / XAMPP crash ตอน INSERT users) แถวสิทธิ์รายหน้าค่าเริ่มต้น `can_view = 0`
   สร้างในโค้ด: เพิ่มผู้ใช้ผ่าน `UserModel` / เพิ่มหน้าผ่าน `PageModel` ได้แถวอัตโนมัติ
   ถ้าเพิ่มข้อมูลด้วย SQL ตรง ๆ ให้รัน `php spark emcc:fill-permissions`
-- import `database/webemcc.sql` มาก่อนแล้ว: ไม่ต้องรัน migrate (โครงสร้างครบแล้ว) แต่ให้รัน `php spark db:seed DatabaseSeeder` ได้ (ข้ามข้อมูลที่มีอยู่)
+- import `database/webemcc.sql` มาก่อนแล้ว: รัน `php spark migrate --all` ได้ตามปกติ (migrations ข้ามตารางที่มีอยู่แล้ว) แล้ว `php spark db:seed DatabaseSeeder`
+- ฐานข้อมูลที่เคยใช้กับเวอร์ชัน Laravel: รัน `php spark emcc:from-laravel` ก่อน migrate (ดู docs/DEPLOY.md)
 - ตาราง `map_*` เป็นของระบบแผนที่ (dev อีกคน) ไม่อยู่ใน migrations ชุดนี้
 - ไฟล์อัปโหลดเก็บที่ `writable/storage` (นอก public) ฐานข้อมูลเก็บแค่ path
 

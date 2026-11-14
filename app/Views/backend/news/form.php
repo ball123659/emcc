@@ -52,7 +52,7 @@ $status = (string) field_value('status', $n['status'] ?? 'draft');
                 <?= text_field('cover_alt_en', ['label' => 'คำอธิบายรูปปก (อังกฤษ)', 'value' => $n['cover_alt_en'] ?? '', 'maxlength' => 255]) ?>
             <?= section_close() ?>
 
-            <?= section_open('แกลเลอรีรูป', 'ลากที่ไอคอน ☰ เพื่อเรียงลำดับ · ใส่คำบรรยายแต่ละรูปได้ · ขนาดแนะนำด้านยาว 1920 px, JPG/PNG/WebP ไม่เกิน ' . ($cfg->imageMaxKb / 1024) . ' MB', ['collapsible' => true]) ?>
+            <?= section_open('แกลเลอรีรูป', 'ลากที่ไอคอน ☰ เพื่อเรียงลำดับ · ใส่คำบรรยายแต่ละรูปได้ · ขนาดแนะนำด้านยาว 1920 px, JPG/PNG/WebP ไม่เกิน ' . mb_label(upload_limit_kb($cfg->imageMaxKb)), ['collapsible' => true]) ?>
                 <div class="repeater" data-repeater>
                     <?php if (field_error('gallery')): ?><p class="field-error"><?= esc(field_error('gallery')) ?></p><?php endif ?>
                     <div class="repeater" data-repeater-list>
@@ -97,7 +97,7 @@ $status = (string) field_value('status', $n['status'] ?? 'draft');
                 </div>
             <?= section_close() ?>
 
-            <?= section_open('ไฟล์แนบ', 'ไฟล์ผ่านการสแกนไวรัสก่อนบันทึก และดาวน์โหลดผ่านระบบเท่านั้น · รองรับ ' . DocumentStorer::extensionsLabel() . ' ไม่เกิน ' . ($cfg->fileMaxKb / 1024) . ' MB', ['collapsible' => true]) ?>
+            <?= section_open('ไฟล์แนบ', 'ไฟล์ผ่านการสแกนไวรัสก่อนบันทึก และดาวน์โหลดผ่านระบบเท่านั้น · รองรับ ' . DocumentStorer::extensionsLabel() . ' ไม่เกิน ' . mb_label(upload_limit_kb($cfg->fileMaxKb)), ['collapsible' => true]) ?>
                 <div class="repeater" data-repeater>
                     <?php if (field_error('attachments')): ?><p class="field-error"><?= esc(field_error('attachments')) ?></p><?php endif ?>
                     <div class="repeater" data-repeater-list>

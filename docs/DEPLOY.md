@@ -32,13 +32,16 @@ database.default.database = webemcc
 database.default.username = ...
 database.default.password = ...
 emcc.virusScanner = defender      # Linux: clamav — ถ้าเป็น none ระบบจะไม่รับไฟล์อัปโหลดในโปรดักชัน
-# app.proxyIPs.10.0.0.5 = X-Forwarded-For   # ถ้าอยู่หลัง reverse proxy / load balancer ที่ทำ HTTPS ให้
+# TRUSTED_PROXIES = '10.0.0.5'    # ถ้าอยู่หลัง reverse proxy / load balancer ที่ทำ HTTPS ให้ (คั่นหลายตัวด้วย , รองรับ CIDR)
 ```
 โปรดักชัน: cookie เป็น Secure + HttpOnly อัตโนมัติ, หน้า error ไม่แสดงรายละเอียดระบบ
 
+**อยู่หลัง reverse proxy / load balancer ต้องตั้ง `TRUSTED_PROXIES`** ไม่งั้นผู้ใช้ทุกคนจะมี IP เดียวกัน
+(จำกัดการล็อกอิน 10 ครั้ง/นาที และดาวน์โหลด 60 ครั้ง/นาที รวมกันทั้งองค์กร, ยอดดาวน์โหลดเพี้ยน, บันทึก IP ผิด)
+
 ฐานข้อมูล (เลือกอย่างใดอย่างหนึ่ง):
 - ฐานว่าง: `php spark migrate --all` แล้ว `php spark db:seed DatabaseSeeder`
-- import `database/webemcc.sql` แล้ว: `php spark db:seed DatabaseSeeder` (ไม่ต้อง migrate)
+- import `database/webemcc.sql` แล้ว: `php spark migrate --all` (ข้ามตารางที่มีอยู่แล้ว) แล้ว `php spark db:seed DatabaseSeeder`
 
 ```bash
 php spark emcc:check      # ทุกข้อควรผ่าน
@@ -55,7 +58,7 @@ Task Scheduler (Windows) / cron (Linux) รันวันละครั้ง 
 ```bash
 php spark emcc:daily
 ```
-ลบบันทึกการใช้งานที่เก่ากว่า `emcc.activityLogRetentionDays` (ค่าเริ่มต้น 730 วัน) และไฟล์ชั่วคราวที่หมดอายุ
+ลบบันทึกการใช้งานที่เก่ากว่า `emcc.activityLogRetentionDays` (ค่าเริ่มต้น 730 วัน), cache ที่หมดอายุ, session เก่า และ log เก่ากว่า 30 วัน
 
 ## อัปเดตโค้ด (หลัง pull ทุกครั้ง)
 ```bash
@@ -87,8 +90,14 @@ tar czf /backup/files-$(date +%F).tar.gz -C /var/www/emcc/writable storage
 - ทดลองกู้คืนอย่างน้อยปีละครั้ง: import SQL ลงฐานทดสอบ + คัดลอกไฟล์กลับ แล้วเปิดหลังบ้านดูรูป/ไฟล์ได้ครบ
 
 ## ย้ายจากเวอร์ชัน Laravel
-ฐานข้อมูลใช้ได้เลย (โครงสร้างเดียวกัน, รหัสผ่าน bcrypt เดิมล็อกอินได้) ให้คัดลอกไฟล์จาก `storage/app/private` ของ Laravel
-ไปไว้ที่ `writable/storage` (โครงโฟลเดอร์ย่อยเหมือนเดิม: `slides`, `popups`, `news`, `news-attachments`, `downloads`, `settings`)
+ข้อมูลใช้ต่อได้ (โครงสร้างเดียวกัน, รหัสผ่าน bcrypt เดิมล็อกอินได้):
+```bash
+php spark emcc:from-laravel     # เก็บตาราง migrations ของ Laravel ไว้เป็น laravel_migrations (รูปแบบต่างกัน)
+php spark migrate --all         # ข้ามตารางที่มีอยู่แล้ว
+php spark db:seed DatabaseSeeder
+```
+แล้วคัดลอกไฟล์จาก `storage/app/private` ของ Laravel ไปไว้ที่ `writable/storage`
+(โครงโฟลเดอร์ย่อยเหมือนเดิม: `slides`, `popups`, `news`, `news-attachments`, `downloads`, `settings`)
 
 ## หลังติดตั้ง
 - ล็อกอิน `/backend` ด้วย `developer` / `passwordemcc` แล้วตั้งรหัสใหม่

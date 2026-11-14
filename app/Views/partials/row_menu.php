@@ -8,6 +8,8 @@ $extra   = $extra ?? [];
 $trashed = $trashed ?? false;
 $canDelete = $canDelete ?? true;
 if (! $trashed && ! $canDelete && $extra === []) {
+    echo '<span class="row-menu-spacer"></span>'; // ให้ปุ่มในแถวตรงกับแถวอื่น
+
     return;
 }
 ?>
@@ -15,6 +17,9 @@ if (! $trashed && ! $canDelete && $extra === []) {
     <button type="button" class="icon-btn" data-dropdown-toggle aria-label="เมนูเพิ่มเติม" aria-haspopup="true"><?= icon('ellipsis-vertical') ?></button>
     <div class="dropdown-panel" hidden>
         <?php foreach ($extra as $item): ?>
+        <?php if (! empty($item['link'])): ?>
+        <a class="dropdown-item" href="<?= esc($item['url'], 'attr') ?>"><?= icon($item['icon'] ?? 'eye') ?> <?= esc($item['label']) ?></a>
+        <?php continue; endif ?>
         <form method="post" action="<?= esc($item['url'], 'attr') ?>">
             <?= csrf_field() ?>
             <button type="submit" class="dropdown-item<?= ($item['variant'] ?? '') === 'danger' ? ' is-danger' : '' ?>"

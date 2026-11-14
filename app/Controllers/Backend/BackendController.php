@@ -74,10 +74,28 @@ abstract class BackendController extends BaseController
     protected function backWithErrors(array $errors, ?string $toast = 'ยังบันทึกไม่ได้ กรุณาแก้ไขช่องที่มีข้อความสีแดง'): RedirectResponse
     {
         if ($toast !== null) {
-            $this->toast($toast, 'danger');
+            $this->toast($toast, 'danger', $this->hasChosenFiles() ? 'ไฟล์/รูปที่เลือกไว้ต้องเลือกใหม่อีกครั้ง (เบราว์เซอร์ไม่เก็บไฟล์ไว้ให้)' : null);
         }
 
         return redirect()->back()->withInput()->with('errors', $errors);
+    }
+
+    /** ฟอร์มนี้มีไฟล์ที่ผู้ใช้เลือกแนบมาหรือไม่ */
+    protected function hasChosenFiles(): bool
+    {
+        $stack = $this->request->getFiles();
+
+        while ($stack !== []) {
+            $item = array_pop($stack);
+
+            if (is_array($item)) {
+                array_push($stack, ...array_values($item));
+            } elseif ($item instanceof \CodeIgniter\HTTP\Files\UploadedFile && $item->getError() !== UPLOAD_ERR_NO_FILE) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected function json(array $data, int $status = 200): ResponseInterface

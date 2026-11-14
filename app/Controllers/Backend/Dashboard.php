@@ -93,10 +93,29 @@ class Dashboard extends BackendController
                 'downloads'      => (new DownloadModel())->visible()->countAllResults(),
                 'downloadTotal'  => (int) ((new DownloadModel())->selectSum('download_count')->first()['download_count'] ?? 0),
             ],
+            'newsPerMonth' => $this->newsPerMonth(),
             'activePopups' => (new PopupModel())->whereStatus(DisplayWindowModel::STATUS_SHOWING)->orderBy('end_date')->orderBy('sort_order')->findAll(5),
             'popularDownloads' => (new DownloadModel())->where('download_count >', 0)->orderBy('download_count', 'desc')->findAll(5),
             'popularNews'      => (new NewsModel())->where('view_count >', 0)->orderBy('view_count', 'desc')->findAll(5),
         ];
+    }
+
+    /** จำนวนข่าวที่เผยแพร่ ย้อนหลัง 6 เดือน (กราฟเล็กบนการ์ด) */
+    private function newsPerMonth(): array
+    {
+        $start  = date('Y-m-01', strtotime(date('Y-m-01') . ' -5 months'));
+        $rows   = db_connect()->table('news')->select("DATE_FORMAT(published_at, '%Y-%m') AS ym, COUNT(*) AS n", false)
+            ->where('status', 'published')->where('deleted_at', null)->where('published_at >=', $start)->where('published_at <=', date('Y-m-d H:i:s'))
+            ->groupBy('ym')->get()->getResultArray();
+        $counts = array_column($rows, 'n', 'ym');
+        $result = [];
+
+        for ($i = 0; $i < 6; $i++) {
+            $ym       = date('Y-m', strtotime($start . " +{$i} months"));
+            $result[] = (int) ($counts[$ym] ?? 0);
+        }
+
+        return $result;
     }
 
     /** "งานที่ต้องทำ" — รายการเตือนที่ระบบสร้างให้อัตโนมัติ (แสดงเฉพาะเรื่องที่ผู้ใช้มีสิทธิ์จัดการ) */

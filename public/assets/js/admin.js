@@ -100,6 +100,26 @@
         });
     });
 
+    /* ---------------- ธีม สว่าง / มืด / ตามระบบ ---------------- */
+    var darkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+    function applyTheme(theme) {
+        var dark = theme === 'dark' || (theme === 'system' && darkQuery && darkQuery.matches);
+        root.classList.toggle('dark', dark);
+        $$('[data-theme]').forEach(function (b) { b.classList.toggle('is-active', b.getAttribute('data-theme') === theme); });
+    }
+    var currentTheme = store.get('emcc.theme') || 'system';
+    applyTheme(currentTheme);
+    $$('[data-theme]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            currentTheme = btn.getAttribute('data-theme');
+            store.set('emcc.theme', currentTheme);
+            applyTheme(currentTheme);
+        });
+    });
+    if (darkQuery && darkQuery.addEventListener) {
+        darkQuery.addEventListener('change', function () { if (currentTheme === 'system') { applyTheme('system'); } });
+    }
+
     /* ---------------- dropdown ---------------- */
     document.addEventListener('click', function (e) {
         var toggle = e.target.closest('[data-dropdown-toggle]');
@@ -174,6 +194,7 @@
         var v = input.validity;
         var label = labelOf(input);
         if (input.dataset.customError) { return input.dataset.customError; }
+        if (v.valueMissing && input.dataset.rejected) { return input.dataset.rejected; }
         if (v.valueMissing) {
             if (input.type === 'file') { return 'กรุณาเลือกไฟล์' + (label ? ' (' + label + ')' : ''); }
             if (input.tagName === 'SELECT' || input.type === 'radio' || input.dataset.date !== undefined) { return 'กรุณาเลือก' + label; }
@@ -195,6 +216,24 @@
         if (box) { box.textContent = message || ''; box.hidden = !message; }
         input.setAttribute('aria-invalid', message ? 'true' : 'false');
     }
+    /* ขนาด/ชนิดไฟล์ที่เลือก (ตามข้อจำกัดจริงของเซิร์ฟเวอร์) */
+    var metaNum = function (name) { var m = $('meta[name="' + name + '"]'); return m ? parseInt(m.content, 10) || 0 : 0; };
+    var mb = function (bytes) { return (bytes / 1048576).toFixed(bytes >= 10485760 ? 0 : 1) + ' MB'; };
+    function fileError(input) {
+        var file = input.files && input.files[0];
+        if (!file) { return ''; }
+        var limit = metaNum('upload-max');
+        var zone = input.closest('[data-max-kb]');
+        if (zone) { var kb = parseInt(zone.getAttribute('data-max-kb'), 10) * 1024; limit = limit > 0 ? Math.min(limit, kb) : kb; }
+        if (limit > 0 && file.size > limit) {
+            return 'ไฟล์ใหญ่เกิน ' + mb(limit) + ' (ไฟล์นี้ ' + mb(file.size) + ') กรุณาลดขนาดไฟล์ก่อนอัปโหลด';
+        }
+        if (/image\//.test(input.getAttribute('accept') || '') && !/^image\/(jpeg|png|webp)$/.test(file.type)) {
+            return 'รองรับเฉพาะรูป JPG, PNG หรือ WebP เท่านั้น';
+        }
+        return '';
+    }
+
     function extraChecks(input) {
         input.dataset.customError = '';
         input.setCustomValidity('');
@@ -253,6 +292,20 @@
             $$('input,select,textarea', form).forEach(function (input) {
                 if (!validateField(input) && !first) { first = input; }
             });
+            // ขนาดไฟล์แต่ละไฟล์ + ขนาดรวม (เกิน post_max_size เซิร์ฟเวอร์จะทิ้งข้อมูลทั้งฟอร์ม)
+            var total = 0;
+            $$('input[type=file]', form).forEach(function (input) {
+                if (input.disabled) { return; }
+                Array.prototype.forEach.call(input.files || [], function (f) { total += f.size; });
+                var err = fileError(input);
+                if (err) { showError(input, err); if (!first) { first = input; } }
+            });
+            var postMax = metaNum('post-max');
+            if (!first && postMax > 0 && total > postMax * 0.95) {
+                e.preventDefault();
+                toast({ type: 'danger', title: 'ไฟล์ที่แนบรวมกันใหญ่เกิน ' + mb(postMax), text: 'ตอนนี้รวม ' + mb(total) + ' — กรุณาลดขนาดไฟล์ หรือบันทึกทีละน้อยไฟล์' });
+                return;
+            }
             $$('.tab-list [data-tab-target]', form).forEach(function (btn) {
                 var panel = document.getElementById(btn.getAttribute('data-tab-target'));
                 var dot = btn.querySelector('.tab-error-dot');
@@ -333,16 +386,18 @@
             if (!file) { reset(); return; }
             var error = '';
             if (maxKb && file.size > maxKb * 1024) {
-                error = 'ไฟล์ใหญ่เกิน ' + (maxKb / 1024) + ' MB (ไฟล์นี้ ' + (file.size / 1048576).toFixed(1) + ' MB) กรุณาลดขนาดไฟล์ก่อนอัปโหลด';
+                error = 'ไฟล์ใหญ่เกิน ' + mb(maxKb * 1024) + ' (ไฟล์นี้ ' + mb(file.size) + ') กรุณาลดขนาดไฟล์ก่อนอัปโหลด';
             } else if (isImage && !/^image\/(jpeg|png|webp)$/.test(file.type)) {
                 error = 'รองรับเฉพาะรูป JPG, PNG หรือ WebP เท่านั้น';
             }
             if (error) {
                 input.value = '';
+                input.dataset.rejected = error; // จำไว้ ตอนกดบันทึกจะแสดงเหตุผลนี้แทน "กรุณาเลือกไฟล์"
                 showError(input, error);
                 reset();
                 return;
             }
+            input.dataset.rejected = '';
             showError(input, '');
             zone.classList.add('has-file');
             name.textContent = file.name + ' (' + (file.size >= 1048576 ? (file.size / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(file.size / 1024)) + ' KB') + ')';
@@ -501,6 +556,9 @@
                 if (first && first.type === 'file') { first.click(); } else if (first) { first.focus(); }
                 $$('input[type=file]', item).forEach(function (fileInput) {
                     fileInput.addEventListener('change', function () {
+                        var err = fileError(fileInput);
+                        showError(fileInput, err);
+                        if (err) { fileInput.value = ''; }
                         var label = item.querySelector('[data-file-name]');
                         var f = fileInput.files && fileInput.files[0];
                         if (label) { label.textContent = f ? f.name : ''; }
@@ -569,6 +627,14 @@
 
     /* ---------------- ค้นหาทั้งระบบ ---------------- */
     var search = $('[data-global-search]');
+    var searchToggle = $('[data-search-toggle]');
+    if (search && searchToggle) {
+        searchToggle.addEventListener('click', function () {
+            var bar = searchToggle.closest('.topbar');
+            bar.classList.toggle('search-open');
+            if (bar.classList.contains('search-open')) { search.querySelector('input').focus(); }
+        });
+    }
     if (search) {
         var sInput = search.querySelector('input');
         var sBox = search.querySelector('.global-search-results');
@@ -593,7 +659,12 @@
                     }).catch(function () {});
             }, 250);
         });
-        document.addEventListener('click', function (e) { if (!search.contains(e.target)) { sBox.hidden = true; } });
+        document.addEventListener('click', function (e) {
+            if (!search.contains(e.target)) {
+                sBox.hidden = true;
+                if (!e.target.closest('[data-search-toggle]')) { search.closest('.topbar').classList.remove('search-open'); }
+            }
+        });
         sInput.addEventListener('keydown', function (e) { if (e.key === 'Escape') { sBox.hidden = true; sInput.blur(); } });
     }
 

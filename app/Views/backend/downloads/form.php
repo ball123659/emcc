@@ -32,7 +32,7 @@ $scan  = Downloads::SCAN_LABELS[$d['scan_status'] ?? ''] ?? null;
                 <div data-show-when="type=file">
                     <?= file_field('file', [
                         'label'   => 'ไฟล์', 'required' => true, 'current' => $d['original_name'] ?? null, 'accept' => DocumentStorer::acceptAttribute(), 'max_kb' => $cfg->fileMaxKb,
-                        'hint'    => 'รองรับ ' . DocumentStorer::extensionsLabel() . ' ไม่เกิน ' . ($cfg->fileMaxKb / 1024) . ' MB (ไม่รับไฟล์ที่มี macro) · ไฟล์ผ่านการสแกนไวรัสก่อนบันทึก' . ($isNew ? '' : ' · อัปไฟล์ใหม่ทับได้ ลิงก์ดาวน์โหลดเดิมใช้ต่อได้'),
+                        'hint'    => 'รองรับ ' . DocumentStorer::extensionsLabel() . ' ไม่เกิน ' . mb_label(upload_limit_kb($cfg->fileMaxKb)) . ' (ไม่รับไฟล์ที่มี macro) · ไฟล์ผ่านการสแกนไวรัสก่อนบันทึก' . ($isNew ? '' : ' · อัปไฟล์ใหม่ทับได้ ลิงก์ดาวน์โหลดเดิมใช้ต่อได้'),
                     ]) ?>
                 </div>
                 <div data-show-when="type=link">

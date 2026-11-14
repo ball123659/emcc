@@ -17,11 +17,12 @@ class UploadCheck
 
     public static function assertUploaded(UploadedFile $file, int $maxKb): void
     {
-        $mb = rtrim(rtrim(number_format($maxKb / 1024, 1), '0'), '.');
+        helper('ui');
+        $mb = mb_label(upload_limit_kb($maxKb)); // ค่าที่รับได้จริง (รวมข้อจำกัดของ php.ini)
 
         match ($file->getError()) {
             UPLOAD_ERR_OK => null,
-            UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => throw new UploadRejected("ไฟล์ใหญ่เกิน {$mb} MB กรุณาลดขนาดไฟล์ก่อนอัปโหลด"),
+            UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => throw new UploadRejected("ไฟล์ใหญ่เกิน {$mb} (ขนาดสูงสุดที่เซิร์ฟเวอร์รับได้) กรุณาลดขนาดไฟล์ก่อนอัปโหลด"),
             UPLOAD_ERR_PARTIAL => throw new UploadRejected('อัปโหลดไฟล์ไม่ครบ (สัญญาณขาดหาย) กรุณาลองใหม่อีกครั้ง'),
             UPLOAD_ERR_NO_FILE => throw new UploadRejected('กรุณาเลือกไฟล์'),
             default            => throw new UploadRejected('เซิร์ฟเวอร์รับไฟล์ไม่ได้ กรุณาลองใหม่ หรือแจ้งผู้ดูแลระบบ'),

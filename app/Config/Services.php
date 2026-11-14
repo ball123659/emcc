@@ -9,10 +9,24 @@ use App\Libraries\VirusScan\ClamAvScanner;
 use App\Libraries\VirusScan\DefenderScanner;
 use App\Libraries\VirusScan\NullScanner;
 use App\Libraries\VirusScan\VirusScanner;
+use App\HTTP\RedirectResponse;
 use CodeIgniter\Config\BaseService;
 
 class Services extends BaseService
 {
+    /** redirect ที่ไม่เก็บรหัสผ่านลง session ตอน withInput() */
+    public static function redirectresponse(?App $config = null, bool $getShared = true)
+    {
+        if ($getShared) {
+            return static::getSharedInstance('redirectresponse', $config);
+        }
+
+        $response = new RedirectResponse($config ?? config(App::class));
+        $response->setProtocolVersion(static::get('request')->getProtocolVersion());
+
+        return $response;
+    }
+
     /** ตัวสแกนไวรัสตาม emcc.virusScanner: none | clamav | defender */
     public static function virusScanner(bool $getShared = true): VirusScanner
     {

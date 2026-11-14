@@ -336,9 +336,10 @@ if (! function_exists('image_field')) {
         $config  = config(Emcc::class);
         $id      = $o['id'] ?? field_id($name);
         $current = media_url($o['current'] ?? null);
-        $hint    = trim(($o['hint'] ?? '') . ' · รองรับ JPG, PNG, WebP ไม่เกิน ' . ($config->imageMaxKb / 1024) . ' MB · ระบบย่อและแปลงเป็น WebP ให้อัตโนมัติ', ' ·');
+        $maxKb   = upload_limit_kb($config->imageMaxKb);
+        $hint    = trim(($o['hint'] ?? '') . ' · รองรับ JPG, PNG, WebP ไม่เกิน ' . mb_label($maxKb) . ' · ระบบย่อและแปลงเป็น WebP ให้อัตโนมัติ', ' ·');
 
-        $html = '<div class="dropzone' . ($current ? ' has-file' : '') . '" data-dropzone data-max-kb="' . $config->imageMaxKb . '" data-kind="image">'
+        $html = '<div class="dropzone' . ($current ? ' has-file' : '') . '" data-dropzone data-max-kb="' . $maxKb . '" data-kind="image">'
             . '<input' . attrs([
                 'type'          => 'file',
                 'name'          => $name,
@@ -368,7 +369,7 @@ if (! function_exists('file_field')) {
     function file_field(string $name, array $o = []): string
     {
         $id   = $o['id'] ?? field_id($name);
-        $html = '<div class="dropzone dropzone-file' . (! empty($o['current']) ? ' has-file' : '') . '" data-dropzone data-max-kb="' . (int) ($o['max_kb'] ?? 20480) . '" data-kind="file">'
+        $html = '<div class="dropzone dropzone-file' . (! empty($o['current']) ? ' has-file' : '') . '" data-dropzone data-max-kb="' . upload_limit_kb((int) ($o['max_kb'] ?? 20480)) . '" data-kind="file">'
             . '<input' . attrs([
                 'type'         => 'file',
                 'name'         => $name,
@@ -434,5 +435,58 @@ if (! function_exists('partial')) {
     function partial(string $name, array $data = []): string
     {
         return view($name, $data, ['saveData' => false]);
+    }
+}
+
+if (! function_exists('ini_bytes')) {
+    /** แปลงค่าใน php.ini เช่น 20M เป็นไบต์ (-1 = ไม่จำกัด) */
+    function ini_bytes(string $value): int
+    {
+        return \App\Libraries\Uploads\ImageProcessor::iniBytes($value);
+    }
+}
+
+if (! function_exists('upload_limit_kb')) {
+    /** ขนาดไฟล์สูงสุดที่รับได้จริง = ค่าของระบบ หรือ upload_max_filesize ของ PHP (อันที่น้อยกว่า) */
+    function upload_limit_kb(int $configKb): int
+    {
+        $ini = ini_bytes((string) ini_get('upload_max_filesize'));
+
+        return $ini > 0 ? min($configKb, intdiv($ini, 1024)) : $configKb;
+    }
+}
+
+if (! function_exists('mb_label')) {
+    function mb_label(int $kb): string
+    {
+        $mb = $kb / 1024;
+
+        return ($mb >= 1 ? rtrim(rtrim(number_format($mb, 1), '0'), '.') : number_format($mb, 2)) . ' MB';
+    }
+}
+
+if (! function_exists('sparkline')) {
+    /** กราฟเส้นเล็ก (SVG) ใต้ตัวเลขบนการ์ดสถิติ */
+    function sparkline(array $values): string
+    {
+        $values = array_values(array_map('intval', $values));
+        $count  = count($values);
+
+        if ($count < 2) {
+            return '';
+        }
+
+        $max    = max(1, max($values));
+        $points = [];
+
+        foreach ($values as $i => $v) {
+            $points[] = round($i * 100 / ($count - 1), 2) . ',' . round(28 - $v * 24 / $max, 2);
+        }
+
+        $line = implode(' ', $points);
+
+        return '<svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">'
+            . '<polygon points="0,30 ' . $line . ' 100,30" class="sparkline-fill"/>'
+            . '<polyline points="' . $line . '" class="sparkline-line"/></svg>';
     }
 }

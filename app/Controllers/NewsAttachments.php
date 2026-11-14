@@ -28,9 +28,7 @@ class NewsAttachments extends BaseController
         }
 
         $news       = (new NewsModel())->withDeleted()->find($attachment['news_id']);
-        $auth       = service('auth');
-        $user       = $auth->user();
-        $canPreview = $user !== null && (bool) $user['is_active'] && empty($user['deleted_at']) && $auth->canViewPage('news');
+        $canPreview = $this->canPreview('news');
         $public     = $news !== null && empty($news['deleted_at']) && $news['status'] === NewsModel::STATUS_PUBLISHED
             && ! empty($news['published_at']) && strtotime($news['published_at']) <= time();
 

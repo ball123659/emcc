@@ -28,9 +28,7 @@ class Downloads extends BaseController
         }
 
         $item       = (new DownloadModel())->withDeleted()->find($id);
-        $auth       = service('auth');
-        $user       = $auth->user();
-        $canPreview = $user !== null && (bool) $user['is_active'] && empty($user['deleted_at']) && $auth->canViewPage('downloads');
+        $canPreview = $this->canPreview('downloads');
 
         if ($item === null || (! ((bool) $item['is_active'] && empty($item['deleted_at'])) && ! $canPreview)) {
             throw PageNotFoundException::forPageNotFound();
@@ -65,13 +63,16 @@ class Downloads extends BaseController
             return;
         }
 
-        $sessionKey = 'downloaded_' . $item['id'];
+        // ผู้ที่มี session อยู่แล้ว: นับครั้งเดียวต่อ session (ไม่เริ่ม session ใหม่ให้ผู้เยี่ยมชมทั่วไป)
+        if ($this->hasSessionCookie()) {
+            $sessionKey = 'downloaded_' . $item['id'];
 
-        if (session()->has($sessionKey)) {
-            return;
+            if (session()->has($sessionKey)) {
+                return;
+            }
+
+            session()->set($sessionKey, true);
         }
-
-        session()->set($sessionKey, true);
 
         $cacheKey = 'download_count_' . $item['id'] . '_' . sha1($this->request->getIPAddress());
 

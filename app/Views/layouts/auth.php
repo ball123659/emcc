@@ -11,6 +11,7 @@ $version = static fn (string $file) => base_url($file) . '?v=' . @filemtime(FCPA
     <link rel="icon" href="<?= base_url('favicon.svg') ?>">
     <link rel="stylesheet" href="<?= $version('fonts/prompt/prompt.css') ?>">
     <link rel="stylesheet" href="<?= $version('assets/css/admin.css') ?>">
+    <script>try { var t = localStorage.getItem('emcc.theme') || 'system'; if (t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark'); } catch (e) {}</script>
 </head>
 <body>
 <div class="auth">

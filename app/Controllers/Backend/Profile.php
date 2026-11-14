@@ -38,8 +38,8 @@ class Profile extends BackendController
 
             if ($current === '') {
                 $errors['current_password'] = 'กรุณากรอกรหัสผ่านปัจจุบันเพื่อยืนยันการเปลี่ยนอีเมล';
-            } elseif (! password_verify($current, (string) $me['password'])) {
-                $errors['current_password'] = 'รหัสผ่านปัจจุบันไม่ถูกต้อง';
+            } elseif (($error = $this->auth->verifyCurrentPassword($me, $current)) !== null) {
+                $errors['current_password'] = $error;
             }
         }
 
@@ -63,10 +63,8 @@ class Profile extends BackendController
         $current = (string) $this->request->getPost('current_password_pw');
         $errors  = [];
 
-        if ($current === '') {
-            $errors['current_password_pw'] = 'กรุณากรอกรหัสผ่านปัจจุบัน';
-        } elseif (! password_verify($current, (string) $me['password'])) {
-            $errors['current_password_pw'] = 'รหัสผ่านปัจจุบันไม่ถูกต้อง';
+        if (($error = $this->auth->verifyCurrentPassword($me, $current)) !== null) {
+            $errors['current_password_pw'] = $error;
         }
 
         $errors += Auth::passwordErrors((string) $this->request->getPost('password'), (string) $this->request->getPost('password_confirmation'), $me);

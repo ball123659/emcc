@@ -172,6 +172,6 @@ final class AuthTest extends TestCase
         $this->makeUser(['username' => 'staff']);
         $this->withoutCsrf()->post('backend/login', ['username' => 'staff', 'password' => 'secret123']);
         $this->assertNull(session('auth_user_id'));
-        $this->assertStringContainsString('หน้านี้หมดอายุ', (string) session('error'));
+        $this->assertStringContainsString('หน้านี้หมดอายุ', (string) session('toast')['title']);
     }
 }

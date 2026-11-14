@@ -66,6 +66,19 @@ class CheckEnvironment extends BaseCommand
             $this->check('เชื่อมต่อฐานข้อมูลได้', false, 'ตรวจ database.default.* ใน .env: ' . $e->getMessage());
         }
 
+        if (ENVIRONMENT !== 'production') {
+            CLI::write('  ! CI_ENVIRONMENT = ' . ENVIRONMENT . ' — ใช้ได้เฉพาะเครื่องพัฒนา บนเซิร์ฟเวอร์จริงต้องเป็น production (ไม่งั้นแถบ debug จะแสดงข้อมูลระบบ/ฐานข้อมูล)', 'yellow');
+        }
+
+        $proxies = array_keys(config('App')->proxyIPs);
+        CLI::write('  · proxy ที่เชื่อถือ (TRUSTED_PROXIES): ' . ($proxies === [] ? 'ไม่ได้ตั้ง — ถ้าเว็บอยู่หลัง reverse proxy / load balancer ต้องตั้ง ไม่งั้นทุกคนจะมี IP เดียวกัน' : implode(', ', $proxies)));
+
+        try {
+            $this->check('ตาราง migrations เป็นของเวอร์ชันนี้', ! FromLaravel::hasLaravelMigrations(), 'ฐานข้อมูลเคยใช้กับเวอร์ชัน Laravel — รัน php spark emcc:from-laravel แล้ว php spark migrate --all');
+        } catch (Throwable) {
+            // เชื่อมต่อฐานข้อมูลไม่ได้ (แจ้งไปแล้วด้านบน)
+        }
+
         $this->check('ตั้งกุญแจเข้ารหัส (encryption.key)', ENVIRONMENT !== 'production' || (string) config('Encryption')->key !== '', 'รัน php spark key:generate');
 
         $driver = strtolower($config->virusScanner);

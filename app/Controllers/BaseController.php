@@ -46,4 +46,23 @@ abstract class BaseController extends Controller
         // Preload any models, libraries, etc, here.
         // $this->session = service('session');
     }
+
+    /** ผู้เยี่ยมชมมี session อยู่แล้วหรือไม่ (หน้าสาธารณะไม่เริ่ม session ใหม่ให้ทุกคำขอ/บอท) */
+    protected function hasSessionCookie(): bool
+    {
+        return $this->request->getCookie(config('Session')->cookieName) !== null;
+    }
+
+    /** ผู้ใช้หลังบ้านที่เปิดอยู่และมีสิทธิ์หน้า $page (ใช้ดูตัวอย่างไฟล์ที่ยังไม่เผยแพร่) */
+    protected function canPreview(string $page): bool
+    {
+        if (! $this->hasSessionCookie()) {
+            return false;
+        }
+
+        $auth = service('auth');
+        $user = $auth->user();
+
+        return $user !== null && (bool) $user['is_active'] && empty($user['deleted_at']) && $auth->canViewPage($page);
+    }
 }

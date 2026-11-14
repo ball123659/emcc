@@ -18,6 +18,8 @@ $initial     = mb_substr(trim((string) ($user['first_name'] ?? '')) ?: (string) 
     <meta name="robots" content="noindex, nofollow">
     <meta name="csrf-name" content="<?= esc(csrf_token(), 'attr') ?>">
     <meta name="csrf-token" content="<?= esc(csrf_hash(), 'attr') ?>">
+    <meta name="upload-max" content="<?= (int) ini_bytes((string) ini_get('upload_max_filesize')) ?>">
+    <meta name="post-max" content="<?= (int) ini_bytes((string) ini_get('post_max_size')) ?>">
     <title><?= esc($title) ?> - EMCC Backend</title>
     <link rel="icon" href="<?= base_url('favicon.svg') ?>">
     <link rel="stylesheet" href="<?= $version('fonts/prompt/prompt.css') ?>">
@@ -25,6 +27,7 @@ $initial     = mb_substr(trim((string) ($user['first_name'] ?? '')) ?: (string) 
     <?= $this->renderSection('styles') ?>
     <link rel="stylesheet" href="<?= $version('assets/css/admin.css') ?>">
     <script>try { if (localStorage.getItem('emcc.sidebar') === 'collapsed') document.documentElement.classList.add('sidebar-collapsed'); } catch (e) {}</script>
+    <script>try { var t = localStorage.getItem('emcc.theme') || 'system'; if (t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark'); } catch (e) {}</script>
 </head>
 <body>
 <a class="skip-link" href="#main">ข้ามไปยังเนื้อหา</a>
@@ -35,6 +38,7 @@ $initial     = mb_substr(trim((string) ($user['first_name'] ?? '')) ?: (string) 
     <a class="brand" href="<?= site_url('backend') ?>">EMCC Backend</a>
     <div class="topbar-spacer"></div>
     <?php if ($user && ! $user['must_change_password']): ?>
+    <button type="button" class="icon-btn search-toggle" data-search-toggle aria-label="ค้นหา" title="ค้นหา"><?= icon('magnifying-glass') ?></button>
     <div class="global-search" data-global-search>
         <?= icon('magnifying-glass', 'icon search-icon') ?>
         <input type="search" placeholder="ค้นหา..." aria-label="ค้นหาทั้งระบบ" autocomplete="off" data-url="<?= site_url('backend/search') ?>">
@@ -47,6 +51,11 @@ $initial     = mb_substr(trim((string) ($user['first_name'] ?? '')) ?: (string) 
             <div class="dropdown-head">
                 <strong><?= esc(\App\Models\UserModel::fullName($user ?? [])) ?></strong>
                 <span><?= esc($user['username'] ?? '') ?> · <?= esc(\App\Models\UserModel::ROLES[$user['role'] ?? 'user'] ?? '') ?></span>
+            </div>
+            <div class="theme-switch" role="group" aria-label="ธีม">
+                <button type="button" data-theme="light" title="สว่าง" aria-label="ธีมสว่าง"><?= icon('sun') ?></button>
+                <button type="button" data-theme="dark" title="มืด" aria-label="ธีมมืด"><?= icon('moon') ?></button>
+                <button type="button" data-theme="system" title="ตามระบบ" aria-label="ธีมตามระบบ"><?= icon('computer-desktop') ?></button>
             </div>
             <?php if ($user && ! $user['must_change_password']): ?>
             <a class="dropdown-item" href="<?= site_url('backend/profile') ?>"><?= icon('user-circle') ?> โปรไฟล์ของฉัน</a>

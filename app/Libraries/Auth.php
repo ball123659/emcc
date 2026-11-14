@@ -18,6 +18,12 @@ class Auth
 {
     public const REMEMBER_COOKIE = 'emcc_remember';
 
+    /** hash หลอก ใช้ตรวจเมื่อไม่พบ username ให้เวลาตอบเท่ากัน (กันเดา username จากเวลา) */
+    private const DUMMY_HASH = '$2y$12$AWdUrixJQ9.NhuRP9fDr7u4oOhZJhwrxVdJQvjx6hAGF5.pFbDIJW';
+
+    /** ใส่รหัสผ่านปัจจุบันผิดได้กี่ครั้ง (หน้าโปรไฟล์ / เปลี่ยนอีเมล) ก่อนพักชั่วคราว */
+    public const CURRENT_PASSWORD_MAX_ATTEMPTS = 5;
+
     private ?array $user = null;
 
     private bool $loaded = false;
@@ -161,7 +167,7 @@ class Auth
             return $this->lockedMessage((int) cache($unknownKey)['until']);
         }
 
-        $valid = $user !== null && password_verify($password, (string) $user['password']);
+        $valid = password_verify($password, $user !== null ? (string) $user['password'] : self::DUMMY_HASH) && $user !== null;
 
         // รหัสถูกแต่บัญชีถูกปิด -> แจ้งตรง ๆ (ยืนยันรหัสแล้ว) และไม่นับเป็นรหัสผิด
         if ($valid && ! (bool) $user['is_active']) {
@@ -227,6 +233,39 @@ class Auth
         }
 
         $this->refresh();
+    }
+
+    /**
+     * ตรวจรหัสผ่านปัจจุบัน (ยืนยันก่อนเปลี่ยนรหัส/อีเมล) — ผิดครบ 5 ครั้งพัก 15 นาที กันเดารหัสจาก session ที่ถูกขโมย
+     *
+     * @return string|null ข้อความผิดพลาด (null = ถูกต้อง)
+     */
+    public function verifyCurrentPassword(array $user, string $password): ?string
+    {
+        $key     = 'current_password_' . (int) $user['id'];
+        $minutes = config(Emcc::class)->loginLockoutMinutes;
+        $entry   = cache($key);
+        $entry   = is_array($entry) ? $entry : ['count' => 0, 'until' => 0];
+
+        if ($entry['count'] >= self::CURRENT_PASSWORD_MAX_ATTEMPTS && $entry['until'] > time()) {
+            return 'ใส่รหัสผ่านปัจจุบันผิดหลายครั้ง กรุณารออีก ' . max(1, (int) ceil(($entry['until'] - time()) / 60)) . ' นาทีแล้วลองใหม่';
+        }
+
+        if ($password === '') {
+            return 'กรุณากรอกรหัสผ่านปัจจุบัน';
+        }
+
+        if (password_verify($password, (string) $user['password'])) {
+            cache()->delete($key);
+
+            return null;
+        }
+
+        $entry['count']++;
+        $entry['until'] = time() + $minutes * 60;
+        cache()->save($key, $entry, $minutes * 60);
+
+        return 'รหัสผ่านปัจจุบันไม่ถูกต้อง';
     }
 
     /** หลังผู้ใช้เปลี่ยนรหัสผ่านตัวเอง: อัปเดต session ปัจจุบันให้ใช้ต่อได้ (session อื่นหลุด) */

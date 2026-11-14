@@ -25,6 +25,7 @@ $can = static fn (string $code) => service('auth')->canViewPage($code);
         <div class="stat-label"><?= icon('newspaper') ?> ข่าวที่เผยแพร่แล้ว</div>
         <div class="stat-value"><?= number_format($stats['published']) ?></div>
         <div class="stat-desc c-primary">เดือนนี้ <?= number_format($stats['publishedMonth']) ?> ข่าว</div>
+        <?= sparkline($newsPerMonth) ?>
     </div>
     <div class="stat">
         <div class="stat-label"><?= icon('clock') ?> ข่าวตั้งเวลา / ร่าง</div>

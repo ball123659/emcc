@@ -75,4 +75,10 @@ jobs:
             done
             diff -u "emcc_sql.$t.sql" "emcc_mig.$t.sql"
           done
+          # ฐานที่ import จาก webemcc.sql ต้องรัน migrate ต่อได้ (ข้ามตารางที่มีอยู่)
+          database_default_database=emcc_sql php spark migrate --all
+          # ฐานที่เคยใช้กับเวอร์ชัน Laravel (ตาราง migrations รูปแบบ Laravel)
+          mysql -h 127.0.0.1 -uroot emcc_sql -e "DROP TABLE migrations; CREATE TABLE migrations (id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, migration VARCHAR(255) NOT NULL, batch INT NOT NULL)"
+          database_default_database=emcc_sql php spark emcc:from-laravel
+          database_default_database=emcc_sql php spark migrate --all
           php spark emcc:check || true

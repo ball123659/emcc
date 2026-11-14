@@ -199,4 +199,19 @@ class App extends BaseConfig
      * @see http://www.w3.org/TR/CSP/
      */
     public bool $CSPEnabled = false;
+
+    /**
+     * IP ของ reverse proxy / load balancer ที่เชื่อถือ — ตั้งใน .env เป็นรายการคั่นด้วย , (รองรับ CIDR) เช่น
+     *   TRUSTED_PROXIES = 10.0.0.5,10.0.1.0/24
+     * แล้วระบบจะใช้ IP จริงของผู้ใช้จาก X-Forwarded-For และรู้ว่าเป็น HTTPS จาก X-Forwarded-Proto
+     * (ตั้งแบบ app.proxyIPs.<ip> ใน .env ไม่ได้ เพราะ CodeIgniter รับเฉพาะคีย์ที่มีอยู่แล้ว)
+     */
+    public function __construct()
+    {
+        parent::__construct();
+
+        foreach (array_filter(array_map('trim', explode(',', (string) env('TRUSTED_PROXIES', '')))) as $proxy) {
+            $this->proxyIPs[$proxy] = 'X-Forwarded-For';
+        }
+    }
 }
