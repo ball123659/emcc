@@ -2,7 +2,7 @@ name: tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, codeigniter]
   pull_request:
 
 jobs:
@@ -35,38 +35,44 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: gd, intl, fileinfo, pdo_mysql, mbstring, zip, exif
+          extensions: gd, intl, fileinfo, mysqli, mbstring, zip, exif
           coverage: none
 
       - run: composer install --no-interaction --prefer-dist --no-progress
 
-      - run: cp .env.example .env && php artisan key:generate
-
-      - name: Code style
-        run: vendor/bin/pint --test
+      - name: PHP syntax
+        run: find app tests -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
 
       # ทดสอบกับฐานข้อมูลจริง (CHECK constraint, FULLTEXT ตรงกับ database/webemcc.sql)
       - name: Tests
-        run: php artisan test
+        run: vendor/bin/phpunit --no-coverage
         env:
-          DB_CONNECTION: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_DATABASE: emcc_test
-          DB_USERNAME: root
-          DB_PASSWORD: secret
+          CI_ENVIRONMENT: testing
+          database_tests_hostname: 127.0.0.1
+          database_tests_database: emcc_test
+          database_tests_username: root
+          database_tests_password: secret
+          database_tests_DBDriver: MySQLi
+          database_tests_port: 3306
 
       # migrations ต้องสร้างโครงสร้างเหมือน database/webemcc.sql ทุกตาราง
       - name: Schema matches webemcc.sql
         env:
           MYSQL_PWD: secret
+          CI_ENVIRONMENT: development
+          database_default_hostname: 127.0.0.1
+          database_default_database: emcc_mig
+          database_default_username: root
+          database_default_password: secret
         run: |
           sed 's/`webemcc`/`emcc_sql`/g' database/webemcc.sql | mysql -h 127.0.0.1 -uroot
           mysql -h 127.0.0.1 -uroot -e "CREATE DATABASE emcc_mig CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci"
-          DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_DATABASE=emcc_mig DB_USERNAME=root DB_PASSWORD=secret php artisan migrate --force
+          php spark migrate --all
+          php spark db:seed DatabaseSeeder
           for t in users pages user_page_permissions slides popups news_categories news news_images news_attachments download_categories downloads site_settings activity_logs; do
             for db in emcc_sql emcc_mig; do
               mysql -h 127.0.0.1 -uroot -N -e "SHOW CREATE TABLE \`$db\`.\`$t\`" | cut -f2 | sed -e 's/ AUTO_INCREMENT=[0-9]*//' > "$db.$t.sql"
             done
             diff -u "emcc_sql.$t.sql" "emcc_mig.$t.sql"
           done
+          php spark emcc:check || true

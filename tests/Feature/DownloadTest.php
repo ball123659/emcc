@@ -2,241 +2,160 @@
 
 namespace Tests\Feature;
 
-use App\Filament\Resources\DownloadCategories\Pages\ManageDownloadCategories;
-use App\Filament\Resources\Downloads\Pages\CreateDownload;
-use App\Filament\Resources\Downloads\Pages\EditDownload;
-use App\Filament\Resources\Downloads\Pages\ListDownloads;
-use App\Models\Download;
-use App\Models\DownloadCategory;
-use App\Models\User;
-use App\Services\Files\DocumentStorer;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\Testing\TestAction;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
-use Livewire\Livewire;
-use Tests\TestCase;
+use App\Libraries\Storage;
+use App\Models\DownloadModel;
+use Tests\Support\TestCase;
 
-class DownloadTest extends TestCase
+/**
+ * ไฟล์ดาวน์โหลด + ลิงก์สาธารณะ /downloads/{id}
+ */
+final class DownloadTest extends TestCase
 {
-    use RefreshDatabase;
-
-    private const PDF = "%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF";
-
-    protected function setUp(): void
+    private function form(array $override = []): array
     {
-        parent::setUp();
-        $this->seed();
-        Storage::fake('local');
+        return $override + ['title_th' => ' เอกสาร ', 'type' => 'file', 'category_id' => '1', 'is_active' => '1'];
     }
 
-    private function storedPdf(string $name = 'คู่มือ.pdf', string $content = self::PDF): string
+    private function docx(bool $macro = false): string
     {
-        return app(DocumentStorer::class)->store(UploadedFile::fake()->createWithContent($name, $content), 'downloads')->path;
+        $path = sys_get_temp_dir() . '/emcc-' . bin2hex(random_bytes(4)) . '.docx';
+        $zip  = new \ZipArchive();
+        $zip->open($path, \ZipArchive::CREATE);
+        $zip->addFromString('[Content_Types].xml', '<Types/>');
+        $zip->addFromString('word/document.xml', '<w:document/>');
+
+        if ($macro) {
+            $zip->addFromString('word/vbaProject.bin', 'macro');
+        }
+
+        $zip->close();
+
+        return $path;
     }
 
-    private function fileDownload(array $attributes = []): Download
+    public function testUploadAndOverwriteKeepsSameLink(): void
     {
-        return Download::create($attributes + [
-            'category_id' => DownloadCategory::first()->id,
-            'title_th' => 'คู่มือการใช้งาน',
-            'type' => Download::TYPE_FILE,
-            'file_path' => $this->storedPdf(),
-            'original_name' => 'คู่มือ.pdf',
-        ]);
+        $admin = $this->admin();
+        $this->upload('file', $this->pdf(), 'รายงานประจำปี.pdf');
+        $this->actingAs($admin)->post('backend/downloads', $this->form());
+
+        $item = (new DownloadModel())->first();
+        $this->assertNotNull($item, json_encode(session('errors')));
+        $this->assertSame(['เอกสาร', 'pdf', 'clean', 'รายงานประจำปี.pdf'], [$item['title_th'], $item['file_extension'], $item['scan_status'], $item['original_name']]);
+        $this->assertSame(64, strlen($item['file_hash']));
+
+        $this->upload('file', $this->docx(), 'new.docx');
+        $this->actingAs($admin)->post('backend/downloads/' . $item['id'], $this->form());
+        $new = (new DownloadModel())->find($item['id']);
+        $this->assertSame('docx', $new['file_extension']);
+        $this->assertSame([$new['file_path']], $this->storageFiles(), 'ไฟล์เก่าถูกลบ');
+        $this->assertSame(site_url('downloads/' . $item['id']), DownloadModel::publicUrl($new));
+
+        // เปลี่ยนเป็นลิงก์ -> ไฟล์ถูกลบ
+        $this->actingAs($admin)->post('backend/downloads/' . $item['id'], $this->form(['type' => 'link', 'external_url' => 'https://drive.google.com/x']));
+        $this->assertNull((new DownloadModel())->find($item['id'])['file_path']);
+        $this->assertSame([], $this->storageFiles());
     }
 
-    public function test_file_metadata_is_filled_from_stored_file(): void
+    public function testRejectedFiles(): void
     {
-        $download = $this->fileDownload();
+        $admin = $this->admin();
+        $cases = [
+            [$this->docx(true), 'macro.docx', 'macro'],
+            [$this->image(), 'photo.pdf', 'เนื้อไฟล์ไม่ตรงกับนามสกุล'],
+            [$this->pdf(), 'script.php', 'ไม่รองรับไฟล์ชนิดนี้'],
+            [$this->pdf(), 'macro.docm', 'ไม่รองรับไฟล์ชนิดนี้'],
+        ];
 
-        $this->assertSame('pdf', $download->file_extension);
-        $this->assertSame('application/pdf', $download->mime_type);
-        $this->assertSame(strlen(self::PDF), $download->file_size);
-        $this->assertSame(hash('sha256', self::PDF), $download->file_hash);
-        $this->assertSame(Download::SCAN_CLEAN, $download->scan_status);
-        $this->assertNotNull($download->scanned_at);
-        $this->assertNull($download->external_url);
-        $this->assertSame(1, $download->sort_order);
+        foreach ($cases as [$path, $name, $message]) {
+            $this->upload('file', $path, $name);
+            $this->actingAs($admin)->post('backend/downloads', $this->form());
+            $this->assertStringContainsString($message, session('errors')['file'], $name);
+        }
+
+        $_FILES = [];
+        $this->actingAs($admin)->post('backend/downloads', $this->form());
+        $this->assertSame('กรุณาเลือกไฟล์ที่จะให้ดาวน์โหลด', session('errors')['file']);
+
+        $this->actingAs($admin)->post('backend/downloads', $this->form(['type' => 'link', 'external_url' => 'file:///etc/passwd']));
+        $this->assertStringContainsString('http://', session('errors')['external_url']);
+
+        $this->assertSame(0, (new DownloadModel())->countAllResults());
+        $this->assertSame([], $this->storageFiles());
     }
 
-    public function test_public_download_counts_once_per_session(): void
+    public function testLongFileNameKeepsExtension(): void
     {
-        $download = $this->fileDownload();
-
-        $this->get($download->publicUrl())
-            ->assertOk()
-            ->assertHeader('Content-Type', 'application/pdf')
-            ->assertHeader('X-Content-Type-Options', 'nosniff')
-            ->assertHeader('Content-Disposition', "attachment; filename=download-{$download->id}.pdf; filename*=utf-8''".rawurlencode('คู่มือ.pdf'));
-        $this->get($download->publicUrl())->assertOk();
-
-        $this->assertSame(1, $download->refresh()->download_count);
+        $stored = service('documentStorer')->store($this->pdf(), 'รายงาน' . str_repeat('ก', 250) . '.pdf', 'downloads');
+        $this->assertStringEndsWith('.pdf', $stored->originalName);
+        $this->assertLessThanOrEqual(200, mb_strlen($stored->originalName));
     }
 
-    public function test_replacing_file_keeps_same_link_and_deletes_old_file(): void
+    private function fileItem(array $data = []): array
     {
-        $download = $this->fileDownload();
-        $url = $download->publicUrl();
-        $old = $download->file_path;
+        $path = 'downloads/' . Storage::uuid() . '.pdf';
+        Storage::copyFrom($this->pdf(), $path);
+        $id = (new DownloadModel())->insert($data + ['category_id' => 1, 'title_th' => 'ไฟล์', 'type' => 'file', 'file_path' => $path,
+            'original_name' => 'a.pdf', 'file_extension' => 'pdf', 'mime_type' => 'application/pdf', 'file_size' => 10, 'scan_status' => 'clean']);
 
-        $download->update(['file_path' => $this->storedPdf('ฉบับใหม่.pdf', self::PDF."\n% v2"), 'original_name' => 'ฉบับใหม่.pdf']);
-
-        $this->assertSame($url, $download->publicUrl());
-        Storage::disk('local')->assertMissing($old);
-        $this->assertSame('ฉบับใหม่.pdf', $download->original_name);
-        $this->get($url)->assertOk()->assertHeader('Content-Disposition', "attachment; filename=download-{$download->id}.pdf; filename*=utf-8''".rawurlencode('ฉบับใหม่.pdf'));
+        return (new DownloadModel())->find($id);
     }
 
-    public function test_external_link_redirects_and_clears_file_fields(): void
+    public function testPublicDownloadRulesAndCounting(): void
     {
-        $download = $this->fileDownload();
-        $old = $download->file_path;
+        $item = $this->fileItem();
+        $get  = function (string $agent, string $method = 'GET') use ($item) {
+            $_SERVER['HTTP_USER_AGENT'] = $agent;
+            \Config\Services::resetSingle('superglobals');
 
-        $download->update(['type' => Download::TYPE_LINK, 'external_url' => 'https://drive.google.com/file/d/abc']);
+            return $this->withSession(['visitor' => bin2hex(random_bytes(3))])->call($method, 'downloads/' . $item['id']);
+        };
 
-        $this->assertNull($download->file_path);
-        $this->assertNull($download->scan_status);
-        Storage::disk('local')->assertMissing($old);
+        $res = $get('Mozilla/5.0 (Windows NT 10.0) Chrome/130');
+        $res->assertStatus(200);
+        $res->assertHeader('Content-Type', 'application/pdf');
+        $this->assertSame('1', (string) (new DownloadModel())->find($item['id'])['download_count']);
 
-        $this->get($download->publicUrl())->assertRedirect('https://drive.google.com/file/d/abc');
-        $this->assertSame(1, $download->refresh()->download_count);
+        $get('Mozilla/5.0 (Windows NT 10.0) Chrome/130');   // session ใหม่ แต่ IP เดิม -> ไม่นับซ้ำ
+        $get('Googlebot/2.1');                              // บอท
+        $get('');                                           // ไม่มี user agent
+        $get('Mozilla/5.0', 'HEAD');                        // HEAD
+        $this->assertSame('1', (string) (new DownloadModel())->find($item['id'])['download_count']);
+        unset($_SERVER['HTTP_USER_AGENT']);
+
+        // ปิดอยู่ / ยังไม่สแกนผ่าน / ถูกลบ -> 404 สำหรับคนทั่วไป
+        (new DownloadModel())->update($item['id'], ['is_active' => 0]);
+        $this->assertNotFound(fn () => $this->withSession(['d' => 1])->get('downloads/' . $item['id']));
+        $user = $this->makeUser([], ['downloads']);
+        $this->actingAs($user)->get('downloads/' . $item['id'])->assertStatus(200); // ผู้มีสิทธิ์ดูตัวอย่างได้
+
+        $pending = $this->fileItem(['scan_status' => 'pending']);
+        $this->assertNotFound(fn () => $this->actingAs($user)->get('downloads/' . $pending['id']));
     }
 
-    public function test_hidden_deleted_or_unscanned_items_are_not_public(): void
+    public function testLinkRedirectsOnlyToHttp(): void
     {
-        $inactive = $this->fileDownload(['is_active' => false]);
-        $pending = $this->fileDownload();
-        $pending->forceFill(['scan_status' => Download::SCAN_PENDING])->saveQuietly();
-        $deleted = $this->fileDownload();
-        $deleted->delete();
+        $id = (new DownloadModel())->insert(['category_id' => 1, 'title_th' => 'ลิงก์', 'type' => 'link', 'external_url' => 'https://drive.google.com/x']);
+        $this->withSession(['a' => 1])->get('downloads/' . $id)->assertRedirectTo('https://drive.google.com/x');
 
-        $this->get($inactive->publicUrl())->assertNotFound();
-        $this->get($pending->publicUrl())->assertNotFound();
-        $this->get($deleted->publicUrl())->assertNotFound();
-        $this->get('/downloads/999999')->assertNotFound();
-
-        $this->assertSame([], Download::visible()->whereIn('id', [$inactive->id, $pending->id])->pluck('id')->all());
-
-        // ผู้มีสิทธิ์หน้าไฟล์ดาวน์โหลดดูตัวอย่างรายการที่ปิดไว้ได้ (ไม่นับยอด) แต่ไฟล์ที่ยังไม่ clean ห้ามเสมอ
-        $this->actingAs(User::factory()->administrator()->create());
-        $this->get($inactive->publicUrl())->assertOk();
-        $this->get($pending->publicUrl())->assertNotFound();
-        $this->assertSame(0, $inactive->refresh()->download_count);
+        db_connect()->table('downloads')->where('id', $id)->update(['external_url' => 'javascript:alert(1)']);
+        $this->assertNotFound(fn () => $this->withSession(['b' => 1])->get('downloads/' . $id));
     }
 
-    public function test_create_link_from_form_and_validation(): void
+    public function testToggleReorderDeleteRestore(): void
     {
-        $this->actingAs(User::factory()->administrator()->create());
-        $category = DownloadCategory::first();
+        $admin = $this->admin();
+        $a     = $this->fileItem(['title_th' => 'A']);
+        $b     = $this->fileItem(['title_th' => 'B']);
 
-        Livewire::test(CreateDownload::class)
-            ->fillForm(['title_th' => '', 'category_id' => null, 'type' => Download::TYPE_LINK, 'external_url' => 'javascript:alert(1)'])
-            ->call('create')
-            ->assertHasFormErrors(['title_th' => 'required', 'category_id' => 'required', 'external_url']);
+        $this->actingAs($admin)->post('backend/downloads/' . $a['id'] . '/toggle', ['value' => '0'])->assertJSONFragment(['message' => 'ปิดแสดงแล้ว']);
+        $this->actingAs($admin)->post('backend/downloads/reorder', ['ids' => [(string) $b['id'], (string) $a['id']]]);
+        $this->assertSame(['B', 'A'], array_column((new DownloadModel())->orderBy('sort_order')->findAll(), 'title_th'));
 
-        Livewire::test(CreateDownload::class)
-            ->fillForm(['type' => Download::TYPE_FILE])
-            ->call('create')
-            ->assertHasFormErrors(['file_path' => 'required']);
-
-        Livewire::test(CreateDownload::class)
-            ->fillForm([
-                'title_th' => 'วิดีโอแนะนำ',
-                'category_id' => $category->id,
-                'type' => Download::TYPE_LINK,
-                'external_url' => 'https://www.youtube.com/watch?v=x',
-            ])
-            ->call('create')
-            ->assertHasNoFormErrors();
-
-        $this->assertSame('https://www.youtube.com/watch?v=x', Download::firstOrFail()->external_url);
-    }
-
-    public function test_create_file_from_form(): void
-    {
-        $this->actingAs(User::factory()->administrator()->create());
-
-        Livewire::test(CreateDownload::class)
-            ->fillForm([
-                'title_th' => 'รายงานประจำปี',
-                'category_id' => DownloadCategory::first()->id,
-                'type' => Download::TYPE_FILE,
-                'file_path' => UploadedFile::fake()->createWithContent('annual-report.pdf', self::PDF),
-            ])
-            ->call('create')
-            ->assertHasNoFormErrors();
-
-        $download = Download::firstOrFail();
-        $this->assertMatchesRegularExpression('#^downloads/[0-9a-f\-]{36}\.pdf$#', $download->file_path);
-        $this->assertSame('annual-report.pdf', $download->original_name);
-        $this->assertSame(Download::SCAN_CLEAN, $download->scan_status);
-        $this->assertNotNull($download->created_by);
-    }
-
-    public function test_rejected_file_shows_error_under_field(): void
-    {
-        $this->actingAs(User::factory()->administrator()->create());
-
-        Livewire::test(CreateDownload::class)
-            ->fillForm([
-                'title_th' => 'x',
-                'category_id' => DownloadCategory::first()->id,
-                'type' => Download::TYPE_FILE,
-                'file_path' => UploadedFile::fake()->createWithContent('macro.xlsm', 'x'),
-            ])
-            ->call('create')
-            ->assertHasFormErrors(['file_path']);
-
-        $this->assertSame(0, Download::count());
-    }
-
-    public function test_drag_reorder(): void
-    {
-        $this->actingAs(User::factory()->administrator()->create());
-        $a = $this->fileDownload(['title_th' => 'A']);
-        $b = $this->fileDownload(['title_th' => 'B']);
-
-        Livewire::test(ListDownloads::class)->call('reorderTable', [(string) $b->id, (string) $a->id]);
-
-        $this->assertSame(['B', 'A'], Download::visible()->pluck('title_th')->all());
-    }
-
-    public function test_category_with_downloads_cannot_be_deleted(): void
-    {
-        $this->actingAs(User::factory()->administrator()->create());
-        $used = DownloadCategory::where('slug', 'documents')->first();
-        $empty = DownloadCategory::where('slug', 'media')->first();
-        $this->fileDownload(['category_id' => $used->id])->delete();
-
-        Livewire::test(ManageDownloadCategories::class)
-            ->assertActionDisabled(TestAction::make(DeleteAction::class)->table($used))
-            ->callAction(TestAction::make(DeleteAction::class)->table($used));
-        $this->assertNotNull($used->fresh());
-
-        Livewire::test(ManageDownloadCategories::class)
-            ->callAction(TestAction::make(DeleteAction::class)->table($empty));
-        $this->assertNull($empty->fresh());
-    }
-
-    public function test_download_pages_require_permission(): void
-    {
-        $user = User::factory()->create();
-        $this->actingAs($user);
-
-        $this->get('/backend/downloads')->assertForbidden();
-        $this->get('/backend/download-categories')->assertForbidden();
-
-        $user->permissions()->whereHas('page', fn ($q) => $q->where('code', 'downloads'))->update(['can_view' => true]);
-
-        $user->forgetPagePermissions(); // ในระบบจริงแต่ละคำขอโหลดผู้ใช้ใหม่
-
-        $this->get('/backend/downloads')->assertOk();
-        $this->get('/backend/download-categories')->assertOk();
-        $this->get('/backend/news')->assertForbidden();
-
-        $download = $this->fileDownload();
-        Livewire::test(EditDownload::class, ['record' => $download->id])->assertOk();
+        $this->actingAs($admin)->post('backend/downloads/' . $a['id'] . '/delete');
+        $this->assertNull((new DownloadModel())->find($a['id']));
+        $this->assertTrue(Storage::exists($a['file_path']), 'ลบแบบกู้คืนได้ ไฟล์ยังอยู่');
+        $this->actingAs($admin)->post('backend/downloads/' . $a['id'] . '/restore');
+        $this->assertNotNull((new DownloadModel())->find($a['id']));
     }
 }

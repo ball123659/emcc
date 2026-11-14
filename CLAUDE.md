@@ -4,15 +4,16 @@
 ลูกค้าเป็นหน่วยงาน (โทน IEAT) — ตอบผู้ใช้เป็นภาษาไทย
 
 ## Stack (ตกลงแล้ว)
-- **Laravel (ล่าสุด) + Filament** สำหรับหลังบ้าน, หน้าบ้านใช้ Blade
+- **branch นี้ (`codeigniter`): CodeIgniter 4.7** หลังบ้านเขียนเอง (หน้าตาเหมือนเวอร์ชัน Laravel + Filament ใน branch `main`), view เป็น PHP ล้วน
+  CSS/JS ล้วนไม่ต้อง build (`public/assets`), ไลบรารี (SortableJS, flatpickr, Quill) เก็บในเครื่องที่ `public/assets/vendor`
 - **MySQL** ฐานข้อมูลชื่อ `webemcc`, `utf8mb4` / `utf8mb4_general_ci`, เวลา Asia/Bangkok
 - เซิร์ฟเวอร์จริง "น่าจะ" เป็น Windows Server + IIS (ยังไม่ยืนยัน) → โค้ดต้องรันได้ทั้ง Windows และ Linux
-  ห้ามพึ่งของที่มีแค่บน Linux; งานตั้งเวลาใช้ Laravel scheduler (บน Windows รันผ่าน Task Scheduler)
-- PHP 8.3+ (Laravel 13 ต้องการ 8.3)
+  ห้ามพึ่งของที่มีแค่บน Linux; งานตั้งเวลาใช้ `php spark emcc:daily` (Windows Task Scheduler / cron)
+- PHP 8.3+
 
 ## ฐานข้อมูล
 - โครงสร้างต้นฉบับ: `database/webemcc.sql` (import เข้า MySQL 8 / MariaDB 10.4+ แล้ว ใช้ได้) — ไม่มี trigger / stored procedure
-- ให้ทำ Laravel migrations/models ให้ตรงกับไฟล์นี้ ถ้าจะเปลี่ยนโครงสร้าง ต้องแก้ทั้ง migration และ SQL ให้ตรงกัน
+- migrations (`app/Database/Migrations`) / models ต้องตรงกับไฟล์นี้ (CI ตรวจเทียบ) ถ้าจะเปลี่ยนโครงสร้าง ต้องแก้ทั้ง migration และ SQL ให้ตรงกัน
 - ไฟล์รูป/เอกสารเก็บบนดิสก์ ฐานข้อมูลเก็บแค่ path
 - ฟิลด์ข้อความหน้าเว็บมี 2 ภาษา: `*_th` บังคับ, `*_en` ไม่บังคับ (ว่าง = แสดงภาษาไทยแทน)
 - ข้อมูลหลักลบแบบ soft delete (`deleted_at`) และเก็บ `created_by` / `updated_by`
@@ -36,7 +37,7 @@
    - ข้อมูล: username, ชื่อ, นามสกุล, email, เบอร์โทร, ตำแหน่ง, บทบาท, เปิด/ปิด, เพิ่ม/ลบ
    - สิทธิ์รายหน้าแบบ **เห็น / ไม่เห็น** (`user_page_permissions.can_view`) ค่าเริ่มต้น 0
      เพิ่มผู้ใช้ → ได้แถวสิทธิ์ 0 ของทุกหน้า, เพิ่มหน้าใน `pages` → ผู้ใช้ทุกคนได้แถวสิทธิ์ 0 อัตโนมัติ
-     **ทำในโค้ดเท่านั้น** (Model `User` / `Page`, `UserPagePermission::fillMissing()` สำหรับข้อมูลที่ insert ตรง)
+     **ทำในโค้ดเท่านั้น** (`UserModel` / `PageModel` afterInsert, `UserPagePermissionModel::fillMissing()` หรือ `php spark emcc:fill-permissions` สำหรับข้อมูลที่ insert ตรง)
      **ห้ามใช้ trigger** — MariaDB 10.4 (XAMPP) crash ตอน INSERT users เพราะ trigger
    - developer / administrator เข้าได้ทุกหน้าเสมอ; หน้า `admin_only = 1` ให้สิทธิ์ user ไม่ได้
    - รหัสผ่านเริ่มต้น `passwordemcc` แสดงข้อความเตือนไว้ในหน้านี้, ปุ่มรีเซ็ตกลับเป็นค่าเริ่มต้น
@@ -53,7 +54,7 @@
 - escape ทุกค่าที่แสดง, กรอง HTML ของ rich text (allowlist แท็ก) กัน XSS
 - CSRF ทุกฟอร์ม, cookie HttpOnly + Secure, บังคับ HTTPS ในโปรดักชัน
 - ล็อกอินผิด 5 ครั้ง → ล็อก 15 นาที; รหัสผ่าน bcrypt
-- ตรวจสิทธิ์ฝั่งเซิร์ฟเวอร์ทุก request (Policy) ไม่ใช่แค่ซ่อนเมนู
+- ตรวจสิทธิ์ฝั่งเซิร์ฟเวอร์ทุก request (filter `auth` / `page:<code>` / `admin` ใน Routes + ตรวจใน controller) ไม่ใช่แค่ซ่อนเมนู
 - อัปโหลด: ตรวจนามสกุล + MIME จากเนื้อไฟล์, จำกัดขนาด, สแกนไวรัส (Windows: Microsoft Defender `MpCmdRun.exe`, Linux: ClamAV) ผ่าน interface ที่สลับได้,
   ตั้งชื่อสุ่ม, เก็บนอก public, ดาวน์โหลดผ่าน controller; ไฟล์ที่ยังไม่ `clean` ห้ามแสดง
 - URL รับเฉพาะ http/https; ห้ามให้ระบบดาวน์โหลดไฟล์จาก URL (SSRF)
@@ -73,7 +74,7 @@
 - ใช้ชื่อไฟล์/URL ภาษาอังกฤษ, แยก CSS กลาง, เลิกใช้ `image-slot.js` (ของเครื่องมือออกแบบ)
 
 ## ลำดับงาน
-1. ติดตั้ง Laravel + Filament, ต่อฐานข้อมูล `webemcc`, migrations/models ให้ตรงกับ SQL
+1. ติดตั้ง CodeIgniter 4, ต่อฐานข้อมูล `webemcc`, migrations/models ให้ตรงกับ SQL
 2. ล็อกอิน + บังคับเปลี่ยนรหัส + จัดการผู้ใช้งาน + สิทธิ์รายหน้า + activity log
 3. Highlight (Slide Show, Popup)
 4. ข่าวประชาสัมพันธ์

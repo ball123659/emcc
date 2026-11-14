@@ -2,403 +2,190 @@
 
 namespace Tests\Feature;
 
-use App\Filament\Resources\News\Pages\CreateNews;
-use App\Filament\Resources\News\Pages\EditNews;
-use App\Filament\Resources\News\Pages\ListNews;
-use App\Filament\Resources\NewsCategories\Pages\ManageNewsCategories;
-use App\Models\ActivityLog;
-use App\Models\News;
-use App\Models\NewsCategory;
-use App\Models\NewsImage;
-use App\Models\User;
-use App\Services\Files\DocumentStorer;
-use App\Services\Files\FileRejectedException;
-use App\Services\Html\HtmlSanitizer;
-use App\Services\Images\ImageProcessor;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\Testing\TestAction;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
-use Livewire\Livewire;
-use Tests\TestCase;
-use ZipArchive;
+use App\Libraries\Storage;
+use App\Models\NewsAttachmentModel;
+use App\Models\NewsCategoryModel;
+use App\Models\NewsImageModel;
+use App\Models\NewsModel;
+use Tests\Support\TestCase;
 
-class NewsTest extends TestCase
+/**
+ * ข่าวประชาสัมพันธ์
+ */
+final class NewsTest extends TestCase
 {
-    use RefreshDatabase;
-
-    protected function setUp(): void
+    private function form(array $override = []): array
     {
-        parent::setUp();
-        $this->seed();
-        Storage::fake('local');
+        return $override + ['title_th' => ' ข่าวทดสอบ ', 'content_th' => '<p>เนื้อหา</p>', 'status' => 'draft', 'category_id' => '1', 'is_pinned' => '0', 'slug' => ''];
     }
 
-    private function cover(): string
+    private function news(array $data = []): int
     {
-        return app(ImageProcessor::class)->store(UploadedFile::fake()->image('c.jpg', 1600, 900), 'news', withThumbnail: true)->path;
+        return (int) (new NewsModel())->insert($data + ['category_id' => 1, 'title_th' => 'ข่าว', 'content_th' => '<p>x</p>', 'cover_image' => 'news/x.webp']);
     }
 
-    private function news(array $attributes = []): News
+    public function testCreateWithCoverGalleryAndAttachment(): void
     {
-        return News::create($attributes + [
-            'category_id' => NewsCategory::first()->id,
-            'title_th' => 'ข่าวทดสอบ',
-            'title_en' => 'Test news',
-            'content_th' => '<p>เนื้อหา</p>',
-            'cover_image' => $this->cover(),
-        ]);
+        $admin = $this->admin();
+        $this->upload('cover_image', $this->image(2400, 1350));
+        $this->upload('gallery_new', $this->image(), 'g.jpg', 'k1');
+        $this->upload('attachment_new', $this->pdf(), 'รายงาน ประจำปี.pdf', 'k2');
+
+        $this->actingAs($admin)->post('backend/news', $this->form([
+            'title_en' => 'PM2.5 Report', 'status' => 'published',
+            'gallery_new_meta' => ['k1' => ['caption_th' => ' คำบรรยาย ', 'sort' => '1']],
+            'attachment_new_meta' => ['k2' => ['title_th' => '', 'sort' => '1']],
+        ]));
+
+        $news = (new NewsModel())->first();
+        $this->assertNotNull($news, json_encode(session('errors')));
+        $this->assertSame('ข่าวทดสอบ', $news['title_th']);
+        $this->assertSame(date('Y-m') . '-pm2-5-report', $news['slug']);
+        $this->assertSame(date('Y-m-d 00:00:00'), $news['published_at'], 'เผยแพร่โดยไม่ระบุวัน = วันนี้');
+        $this->assertSame(1920, getimagesize(Storage::path($news['cover_image']))[0]);
+        $this->assertTrue(Storage::exists($news['cover_thumb']));
+
+        $image = (new NewsImageModel())->where('news_id', $news['id'])->first();
+        $this->assertSame('คำบรรยาย', $image['caption_th']);
+        $attachment = (new NewsAttachmentModel())->where('news_id', $news['id'])->first();
+        $this->assertSame('รายงาน ประจำปี', $attachment['title_th'], 'ไม่ตั้งชื่อ = ใช้ชื่อไฟล์');
+        $this->assertSame('clean', $attachment['scan_status']);
+
+        // ไฟล์แนบดาวน์โหลดได้ (ข่าวเผยแพร่แล้ว) — ชื่อไทยผ่าน filename*
+        $res = $this->withSession(['x' => 1])->get('news/attachments/' . $attachment['id']);
+        $res->assertStatus(200);
+        $res->assertHeader('X-Content-Type-Options', 'nosniff');
+        $this->assertStringContainsString("filename*=UTF-8''" . rawurlencode('รายงาน ประจำปี.pdf'), $res->response()->getHeaderLine('Content-Disposition'));
+
+        $this->assertSame(['create'], array_column(db_connect()->table('activity_logs')->where('subject_type', 'news_images')->get()->getResultArray(), 'action'));
     }
 
-    // ---------- HTML / XSS ----------
-
-    public function test_rich_text_is_sanitized_on_save(): void
+    public function testThaiOnlyTitleGetsIdSlugAndCreateLogHasFinalSlug(): void
     {
-        $news = $this->news([
-            'content_th' => '<p onclick="x()">ข่าว<script>alert(1)</script><img src=x onerror=alert(1)>'
-                .'<a href="javascript:alert(1)">bad</a><a href="https://ieat.go.th" target="_blank">ok</a></p>',
-            'content_en' => '<p></p>',
-        ]);
+        $id   = $this->news(['title_th' => 'ข่าวภาษาไทยล้วน', 'published_at' => '2026-11-20']);
+        $news = (new NewsModel())->find($id);
+        $this->assertSame("2026-11-{$id}", $news['slug']);
 
-        $html = $news->refresh()->content_th;
-        $this->assertStringNotContainsString('script', $html);
-        $this->assertStringNotContainsString('onclick', $html);
-        $this->assertStringNotContainsString('onerror', $html);
-        $this->assertStringNotContainsString('javascript:', $html);
-        $this->assertStringContainsString('href="https://ieat.go.th"', $html);
-        $this->assertStringContainsString('rel="noopener noreferrer"', $html);
-        $this->assertNull($news->content_en, 'เนื้อหาอังกฤษว่าง -> null (ใช้ภาษาไทยแทน)');
+        $log = db_connect()->table('activity_logs')->where(['subject_type' => 'news', 'subject_id' => $id, 'action' => 'create'])->get()->getRowArray();
+        $this->assertSame("2026-11-{$id}", json_decode($log['changes'], true)['new']['slug']);
     }
 
-    public function test_sanitizer_keeps_editor_formatting(): void
+    public function testSlugLockedAfterPublishEvenWhenHidden(): void
     {
-        $html = '<h2>หัวข้อ</h2><p><strong>หนา</strong> <em>เอียง</em> <u>ขีด</u></p><ul><li>a</li></ul><blockquote>q</blockquote>'
-            .'<table><tbody><tr><td colspan="2">c</td></tr></tbody></table>';
+        $id = $this->news(['title_en' => 'Shared link', 'status' => 'published', 'published_at' => date('Y-m-d')]);
+        $original = (new NewsModel())->find($id)['slug'];
 
-        $this->assertSame($html, HtmlSanitizer::clean($html));
+        (new NewsModel())->update($id, ['status' => 'hidden']);
+        (new NewsModel())->update($id, ['slug' => 'renamed']);
+        $this->assertSame($original, (new NewsModel())->find($id)['slug']);
+
+        // ร่างยังเปลี่ยน slug ได้
+        $draft = $this->news(['title_en' => 'Draft news']);
+        (new NewsModel())->update($draft, ['slug' => 'My Custom']);
+        $this->assertSame('my-custom', (new NewsModel())->find($draft)['slug']);
     }
 
-    // ---------- slug / สถานะ ----------
-
-    public function test_slug_is_generated_and_unique(): void
+    public function testContentIsSanitizedAndPastedImagesWarn(): void
     {
-        $a = $this->news(['title_en' => 'PM2.5 Report', 'published_at' => '2026-11-05 10:00']);
-        $b = $this->news(['title_en' => 'PM2.5 Report', 'published_at' => '2026-11-06 10:00']);
-        $c = $this->news(['title_en' => null, 'title_th' => 'ข่าวภาษาไทยล้วน']);
+        $admin = $this->admin();
+        $this->upload('cover_image', $this->image());
+        $this->actingAs($admin)->post('backend/news', $this->form(['content_th' => '<p>ข้อความ<img src="data:image/png;base64,AAAA"><script>x</script></p>']));
 
-        $this->assertSame('2026-11-pm25-report', $a->slug);
-        $this->assertSame('2026-11-pm25-report-2', $b->slug);
-        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-[a-z0-9-]+$/', $c->slug);
+        $news = (new NewsModel())->first();
+        $this->assertStringNotContainsString('<img', $news['content_th']);
+        $this->assertStringNotContainsString('<script', $news['content_th']);
+        $this->assertSame('รูปในเนื้อหาข่าวถูกนำออก', session('toast')['title']);
     }
 
-    public function test_publish_status_and_schedule(): void
+    public function testValidation(): void
     {
-        $now = $this->news(['status' => News::STATUS_PUBLISHED]);
-        $this->assertNotNull($now->published_at, 'เผยแพร่โดยไม่ระบุวัน = วันนี้');
-        $this->assertSame(News::STATUS_PUBLISHED, $now->displayStatus());
+        $admin = $this->admin();
+        $this->actingAs($admin)->post('backend/news', $this->form(['title_th' => '', 'content_th' => '<p><br></p>', 'category_id' => '', 'slug' => 'มีภาษาไทย']));
+        $errors = session('errors');
+        $this->assertSame('กรุณากรอกหัวข้อข่าวภาษาไทย', $errors['title_th']);
+        $this->assertSame('กรุณากรอกเนื้อหาข่าวภาษาไทย', $errors['content_th']);
+        $this->assertSame('กรุณาเลือกหมวดหมู่', $errors['category_id']);
+        $this->assertStringContainsString('a-z', $errors['slug']);
 
-        $later = $this->news(['status' => News::STATUS_PUBLISHED, 'published_at' => now()->addDay()]);
-        $this->assertSame(News::DISPLAY_SCHEDULED, $later->displayStatus());
-
-        $this->news(['status' => News::STATUS_DRAFT]);
-        $this->news(['status' => News::STATUS_HIDDEN, 'published_at' => now()->subDay()]);
-
-        $this->assertSame([$now->id], News::published()->pluck('id')->all());
-
-        $this->travel(2)->days();
-        $this->assertEqualsCanonicalizing([$now->id, $later->id], News::published()->pluck('id')->all());
+        // ไม่มีรูปปก
+        $this->actingAs($admin)->post('backend/news', $this->form());
+        $this->assertSame('กรุณาเลือกรูปปก', session('errors')['cover_image']);
     }
 
-    public function test_publish_date_is_day_level(): void
+    public function testScheduledNewsAndAttachmentAccess(): void
     {
-        $this->travelTo(now()->setTime(14, 35));
+        $user = $this->makeUser([], ['news']);
+        $id   = $this->news(['status' => 'published', 'published_at' => date('Y-m-d', strtotime('+3 days'))]);
+        $this->assertSame('scheduled', NewsModel::displayStatus((new NewsModel())->find($id)));
 
-        $today = $this->news(['status' => News::STATUS_PUBLISHED]);
-        $this->assertSame(today()->format('Y-m-d H:i:s'), $today->published_at->format('Y-m-d H:i:s'));
+        $path = 'news-attachments/' . Storage::uuid() . '.pdf';
+        Storage::copyFrom($this->pdf(), $path);
+        $att = (new NewsAttachmentModel())->insert(['news_id' => $id, 'title_th' => 'a', 'file_path' => $path, 'original_name' => 'a.pdf', 'mime_type' => 'application/pdf', 'file_size' => 10, 'scan_status' => 'clean']);
 
-        $withTime = $this->news(['status' => News::STATUS_PUBLISHED, 'published_at' => '2026-12-01 15:45']);
-        $this->assertSame('2026-12-01 00:00:00', $withTime->published_at->format('Y-m-d H:i:s'));
+        // ยังไม่เผยแพร่: คนทั่วไป 404, ผู้มีสิทธิ์หน้าข่าวดูตัวอย่างได้
+        $this->assertNotFound(fn () => $this->withSession(['x' => 1])->get('news/attachments/' . $att));
+        $this->actingAs($user)->get('news/attachments/' . $att)->assertStatus(200);
 
-        // ตั้งเผยแพร่พรุ่งนี้ -> ขึ้นหน้าเว็บตอน 00:00 ของวันพรุ่งนี้
-        $tomorrow = $this->news(['status' => News::STATUS_PUBLISHED, 'published_at' => today()->addDay()->toDateString()]);
-        $this->assertFalse($tomorrow->isPubliclyVisible());
-        $this->travelTo(today()->addDay()->setTime(0, 0, 1));
-        $this->assertTrue($tomorrow->fresh()->isPubliclyVisible());
+        $this->actingAs($user)->post('backend/news/' . $id . '/publish');
+        $this->assertSame('published', NewsModel::displayStatus((new NewsModel())->find($id)));
+        $this->withSession(['x' => 1])->get('news/attachments/' . $att)->assertStatus(200);
+
+        // ไฟล์ที่ยังไม่ clean ห้ามดาวน์โหลด
+        (new NewsAttachmentModel())->update($att, ['scan_status' => 'pending']);
+        $this->assertNotFound(fn () => $this->actingAs($user)->get('news/attachments/' . $att));
     }
 
-    public function test_publish_date_field_is_date_only_in_form(): void
+    public function testGalleryEditReorderAndDelete(): void
     {
-        $this->actingAs(User::factory()->administrator()->create());
-        $news = $this->news(['status' => News::STATUS_PUBLISHED, 'published_at' => '2026-11-20']);
+        $admin = $this->admin();
+        $id    = $this->news();
+        $images = [];
 
-        Livewire::test(EditNews::class, ['record' => $news->getRouteKey()])
-            ->assertSchemaStateSet(['published_at' => '2026-11-20'])
-            ->fillForm(['published_at' => '2026-11-25'])
-            ->call('save')
-            ->assertHasNoFormErrors();
-
-        $this->assertSame('2026-11-25 00:00:00', $news->refresh()->published_at->format('Y-m-d H:i:s'));
-
-        Livewire::test(ListNews::class)->assertSee('25/11/2026')->assertDontSee('25/11/2026 00:00');
-    }
-
-    public function test_pinned_news_comes_first_and_view_count(): void
-    {
-        $old = $this->news(['status' => 'published', 'published_at' => now()->subDays(5), 'is_pinned' => true]);
-        $new = $this->news(['status' => 'published', 'published_at' => now()->subDay()]);
-
-        $this->assertSame([$old->id, $new->id], News::published()->pluck('id')->all());
-
-        $updatedAt = $new->updated_at;
-        $new->recordView();
-        $new->recordView();
-        $this->assertSame(2, $new->refresh()->view_count);
-        $this->assertEquals($updatedAt, $new->updated_at);
-    }
-
-    // ---------- ฟอร์มหลังบ้าน ----------
-
-    public function test_create_news_from_form(): void
-    {
-        $this->actingAs(User::factory()->administrator()->create());
-
-        Livewire::test(CreateNews::class)
-            ->fillForm([
-                'title_th' => 'ตรวจวัดคุณภาพอากาศ',
-                'title_en' => 'Air Quality Monitoring',
-                'excerpt_th' => 'คำโปรย',
-                'content_th' => '<p>เนื้อหา <script>x</script></p>',
-                'cover_image' => UploadedFile::fake()->image('cover.jpg', 2400, 1350),
-                'category_id' => NewsCategory::first()->id,
-                'status' => News::STATUS_PUBLISHED,
-                'is_pinned' => true,
-            ])
-            ->call('create')
-            ->assertHasNoFormErrors();
-
-        $news = News::firstOrFail();
-        $this->assertStringStartsWith(now()->format('Y-m').'-air-quality-monitoring', $news->slug);
-        $this->assertStringNotContainsString('script', $news->content_th);
-        $this->assertNotNull($news->published_at);
-        Storage::disk('local')->assertExists([$news->cover_image, $news->cover_thumb]);
-        $this->assertSame(1920, getimagesizefromstring(Storage::disk('local')->get($news->cover_image))[0]);
-        $this->assertTrue(ActivityLog::where('action', 'create')->where('subject_type', 'news')->exists());
-    }
-
-    public function test_news_form_validation(): void
-    {
-        $this->actingAs(User::factory()->administrator()->create());
-        $this->news(['slug' => 'taken-slug']);
-
-        Livewire::test(CreateNews::class)
-            ->fillForm(['title_th' => '', 'content_th' => '', 'category_id' => null, 'slug' => 'ภาษาไทย'])
-            ->call('create')
-            ->assertHasFormErrors(['title_th' => 'required', 'content_th', 'cover_image' => 'required', 'category_id' => 'required', 'slug' => 'regex']);
-
-        Livewire::test(CreateNews::class)
-            ->fillForm(['slug' => 'taken-slug'])
-            ->call('create')
-            ->assertHasFormErrors(['slug' => 'unique']);
-    }
-
-    public function test_gallery_images_get_thumbnail_and_size_and_file_is_deleted_with_image(): void
-    {
-        $news = $this->news();
-        $path = app(ImageProcessor::class)->store(UploadedFile::fake()->image('g.png', 3000, 2000), 'news', withThumbnail: true)->path;
-
-        $image = $news->images()->create(['image_path' => $path, 'caption_th' => 'บรรยาย', 'sort_order' => 1]);
-
-        $this->assertSame([1920, 1280], [$image->width, $image->height]);
-        $this->assertStringEndsWith('_thumb.webp', $image->thumb_path);
-        Storage::disk('local')->assertExists($image->thumb_path);
-
-        $image->delete();
-        Storage::disk('local')->assertMissing([$path, $image->thumb_path]);
-    }
-
-    public function test_gallery_reorder_from_form(): void
-    {
-        $this->actingAs(User::factory()->administrator()->create());
-        $news = $this->news();
-        $first = $news->images()->create(['image_path' => $this->cover(), 'caption_th' => 'หนึ่ง', 'sort_order' => 1]);
-        $second = $news->images()->create(['image_path' => $this->cover(), 'caption_th' => 'สอง', 'sort_order' => 2]);
-
-        $component = Livewire::test(EditNews::class, ['record' => $news->getRouteKey()]);
-        $keys = array_keys($component->get('data.images'));
-        $component->set('data.images', [$keys[1] => $component->get('data.images')[$keys[1]], $keys[0] => $component->get('data.images')[$keys[0]]])
-            ->call('save')
-            ->assertHasNoFormErrors();
-
-        $this->assertSame(['สอง', 'หนึ่ง'], $news->images()->pluck('caption_th')->all());
-        $this->assertSame(2, NewsImage::count());
-        $this->assertNotNull($first->fresh());
-        $this->assertNotNull($second->fresh());
-    }
-
-    // ---------- ไฟล์แนบ ----------
-
-    public function test_document_storer_accepts_whitelisted_files(): void
-    {
-        $stored = app(DocumentStorer::class)->store(UploadedFile::fake()->createWithContent('รายงาน ประจำปี.pdf', "%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF"), 'news-attachments');
-
-        $this->assertMatchesRegularExpression('#^news-attachments/[0-9a-f\-]{36}\.pdf$#', $stored->path);
-        $this->assertSame('รายงาน ประจำปี.pdf', $stored->originalName);
-        $this->assertSame('application/pdf', $stored->mimeType);
-        $this->assertSame(64, strlen($stored->hash));
-        Storage::disk('local')->assertExists($stored->path);
-    }
-
-    public function test_exported_xls_files_are_accepted(): void
-    {
-        $storer = app(DocumentStorer::class);
-        $samples = [
-            'html.xls' => '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><body><table><tr><td>สถานี</td><td>PM2.5</td></tr></table></body></html>',
-            'xml.xls' => '<?xml version="1.0"?>'."\n".'<?mso-application progid="Excel.Sheet"?>'."\n".'<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"/>',
-            'tsv.xls' => "a\tb\n1\t2\n",
-            'ole.xls' => hex2bin('D0CF11E0A1B11AE1').str_repeat("\0", 504),
-            'html.doc' => '<html><body><p>เอกสาร</p></body></html>',
-        ];
-
-        foreach ($samples as $name => $content) {
-            $stored = $storer->store(UploadedFile::fake()->createWithContent($name, $content), 'news-attachments');
-            $this->assertStringEndsWith('.'.pathinfo($name, PATHINFO_EXTENSION), $stored->path, $name);
+        foreach ([1, 2] as $i) {
+            $stored   = service('imageProcessor')->store($this->image(), 'news', true);
+            $images[] = (int) (new NewsImageModel())->insert(['news_id' => $id, 'image_path' => $stored->path, 'thumb_path' => $stored->thumbPath, 'sort_order' => $i]);
         }
 
-        // แต่ไฟล์ PHP ที่ตั้งนามสกุล .xls ยังถูกปฏิเสธ
-        $this->expectException(FileRejectedException::class);
-        $storer->store(UploadedFile::fake()->createWithContent('evil.xls', '<?php system($_GET["c"]);'), 'news-attachments');
+        $this->actingAs($admin)->post('backend/news/' . $id, $this->form([
+            'images' => [
+                (string) $images[0] => ['caption_th' => 'แรก', 'sort' => '2', 'delete' => '0'],
+                (string) $images[1] => ['caption_th' => '', 'sort' => '1', 'delete' => '1'],
+            ],
+        ]));
+
+        $rows = (new NewsImageModel())->where('news_id', $id)->findAll();
+        $this->assertCount(1, $rows);
+        $this->assertSame('แรก', $rows[0]['caption_th']);
+        $this->assertSame('1', (string) $rows[0]['sort_order']);
+        $this->assertCount(2, $this->storageFiles(), 'ลบไฟล์รูปที่ถูกลบ (รูป + thumbnail)');
+        $this->assertSame('delete', db_connect()->table('activity_logs')->where('subject_type', 'news_images')->orderBy('id', 'desc')->get()->getRowArray()['action']);
     }
 
-    public function test_document_storer_rejects_bad_files(): void
+    public function testListFiltersTabsAndCategoryInUseCannotBeDeleted(): void
     {
-        $storer = app(DocumentStorer::class);
-        $cases = [
-            'shell.php' => '<?php echo 1;',
-            'macro.docm' => 'x',
-            'fake.pdf' => '<?php echo 1;',
-            'script.exe' => 'MZ',
-        ];
+        $admin = $this->admin();
+        $this->news(['title_th' => 'ข่าวร่าง']);
+        $this->news(['title_th' => 'ข่าวปักหมุด', 'status' => 'published', 'published_at' => date('Y-m-d'), 'is_pinned' => 1]);
 
-        foreach ($cases as $name => $content) {
-            try {
-                $storer->store(UploadedFile::fake()->createWithContent($name, $content), 'news-attachments');
-                $this->fail("ควรปฏิเสธ {$name}");
-            } catch (FileRejectedException) {
-                $this->addToAssertionCount(1);
-            }
-        }
+        $res = $this->actingAs($admin)->get('backend/news?tab=draft');
+        $res->assertSee('ข่าวร่าง');
+        $res->assertDontSee('ข่าวปักหมุด');
+        $this->actingAs($admin)->get('backend/news?pinned=1')->assertSee('ข่าวปักหมุด');
+        $this->actingAs($admin)->get('backend/news?q=' . urlencode('ร่าง'))->assertDontSee('ข่าวปักหมุด');
 
-        // .docx ที่ฝัง macro (vbaProject.bin) ต้องถูกปฏิเสธ
-        $docx = tempnam(sys_get_temp_dir(), 'docx');
-        $zip = new ZipArchive;
-        $zip->open($docx, ZipArchive::OVERWRITE);
-        $zip->addFromString('[Content_Types].xml', '<Types/>');
-        $zip->addFromString('word/document.xml', '<w:document/>');
-        $zip->addFromString('word/vbaProject.bin', 'macro');
-        $zip->close();
+        $this->actingAs($admin)->post('backend/news-categories/1/delete');
+        $this->assertNotNull((new NewsCategoryModel())->find(1));
+        $this->assertSame('หมวดนี้ยังมีข้อมูลอยู่ ลบไม่ได้', session('toast')['title']);
 
-        try {
-            $storer->store(new UploadedFile($docx, 'macro.docx', null, null, true), 'news-attachments');
-            $this->fail('ควรปฏิเสธ docx ที่มี macro');
-        } catch (FileRejectedException $e) {
-            $this->assertStringContainsString('macro', $e->getMessage());
-        }
+        // หมวดว่างลบได้ / slug ยาวไม่เกิน 100
+        $this->actingAs($admin)->post('backend/news-categories', ['name_th' => ' หมวดใหม่ ', 'name_en' => str_repeat('a', 100), 'is_active' => '1']);
+        $this->actingAs($admin)->post('backend/news-categories', ['name_th' => 'หมวดสอง', 'name_en' => str_repeat('a', 100), 'is_active' => '1']);
+        $second = (new NewsCategoryModel())->where('name_th', 'หมวดสอง')->first();
+        $this->assertLessThanOrEqual(100, strlen($second['slug']));
+        $this->assertStringEndsWith('-2', $second['slug']);
+        $this->assertNotNull((new NewsCategoryModel())->where('name_th', 'หมวดใหม่')->first());
 
-        $this->assertSame([], Storage::disk('local')->allFiles('news-attachments'));
-    }
-
-    public function test_attachment_download_rules(): void
-    {
-        $news = $this->news(['status' => News::STATUS_DRAFT]);
-        $stored = app(DocumentStorer::class)->store(UploadedFile::fake()->createWithContent('a.txt', 'hello'), 'news-attachments');
-        $attachment = $news->attachments()->create(['title_th' => 'ไฟล์', 'file_path' => $stored->path, 'original_name' => 'เอกสาร.txt']);
-
-        $this->assertSame('clean', $attachment->scan_status);
-        $this->assertSame('text/plain', $attachment->mime_type);
-        $this->assertSame(5, $attachment->file_size);
-
-        // ข่าวยังไม่เผยแพร่ -> คนทั่วไปโหลดไม่ได้, ผู้มีสิทธิ์หน้าข่าวโหลดได้ (ตรวจก่อนเผยแพร่)
-        $this->get($attachment->downloadUrl())->assertNotFound();
-        $this->actingAs(User::factory()->administrator()->create())
-            ->get($attachment->downloadUrl())->assertOk()->assertHeader('Content-Disposition', "attachment; filename=attachment-{$attachment->id}.txt; filename*=utf-8''".rawurlencode('เอกสาร.txt'));
-        auth()->logout();
-
-        $news->update(['status' => News::STATUS_PUBLISHED]);
-        $this->get($attachment->downloadUrl())->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
-
-        // ไฟล์ที่ยังไม่ clean ห้ามแสดง
-        $attachment->update(['scan_status' => 'pending']);
-        $this->get($attachment->downloadUrl())->assertNotFound();
-
-        // ลบรายการ -> ลบไฟล์
-        $attachment->delete();
-        Storage::disk('local')->assertMissing($stored->path);
-    }
-
-    // ---------- หมวดหมู่ ----------
-
-    public function test_category_with_news_cannot_be_deleted(): void
-    {
-        $this->actingAs(User::factory()->administrator()->create());
-        $used = NewsCategory::where('slug', 'news')->first();
-        $empty = NewsCategory::where('slug', 'announcements')->first();
-        $news = $this->news(['category_id' => $used->id]);
-        $news->delete(); // แม้ข่าวถูกลบแบบกู้คืนได้ หมวดก็ยังลบไม่ได้
-
-        Livewire::test(ManageNewsCategories::class)
-            ->assertActionDisabled(TestAction::make(DeleteAction::class)->table($used))
-            ->callAction(TestAction::make(DeleteAction::class)->table($used));
-
-        $this->assertNotNull($used->fresh());
-        $this->assertFalse(auth()->user()->can('delete', $used));
-
-        Livewire::test(ManageNewsCategories::class)
-            ->callAction(TestAction::make(DeleteAction::class)->table($empty));
-        $this->assertNull($empty->fresh());
-    }
-
-    public function test_category_slug_is_generated(): void
-    {
-        $category = NewsCategory::create(['name_th' => 'งานวิจัย', 'name_en' => 'Research Papers']);
-
-        $this->assertSame('research-papers', $category->slug);
-        $this->assertSame(4, $category->sort_order);
-    }
-
-    // ---------- สิทธิ์ / log ----------
-
-    public function test_news_pages_require_news_permission(): void
-    {
-        $user = User::factory()->create();
-        $this->actingAs($user);
-
-        $this->get('/backend/news')->assertForbidden();
-        $this->get('/backend/news-categories')->assertForbidden();
-
-        $user->permissions()->whereHas('page', fn ($q) => $q->where('code', 'news'))->update(['can_view' => true]);
-
-        $user->forgetPagePermissions(); // ในระบบจริงแต่ละคำขอโหลดผู้ใช้ใหม่
-
-        $this->get('/backend/news')->assertOk();
-        $this->get('/backend/news/create')->assertOk();
-        $this->get('/backend/news-categories')->assertOk();
-    }
-
-    public function test_activity_log_does_not_store_full_content(): void
-    {
-        $news = $this->news(['content_th' => '<p>'.str_repeat('ก', 1000).'</p>']);
-
-        $log = ActivityLog::where('subject_type', 'news')->where('subject_id', $news->id)->firstOrFail();
-        $this->assertStringContainsString('ข้อความยาว', $log->changes['new']['content_th']);
-    }
-
-    public function test_list_page_shows_status_labels(): void
-    {
-        $this->actingAs(User::factory()->administrator()->create());
-        $this->news(['status' => News::STATUS_PUBLISHED, 'published_at' => now()->addDay()]);
-        $this->news(['status' => News::STATUS_DRAFT]);
-
-        Livewire::test(ListNews::class)->assertSee(['ตั้งเวลาเผยแพร่', 'ร่าง']);
+        $this->actingAs($admin)->post('backend/news-categories/' . $second['id'] . '/delete');
+        $this->assertNull((new NewsCategoryModel())->find($second['id']));
     }
 }

@@ -2,283 +2,178 @@
 
 namespace Tests\Feature;
 
-use App\Filament\Auth\EditProfile;
-use App\Filament\Auth\Login;
-use App\Filament\Resources\ActivityLogs\Pages\ListActivityLogs;
-use App\Filament\Resources\Users\Pages\CreateUser;
-use App\Filament\Resources\Users\Pages\EditUser;
-use App\Filament\Resources\Users\Pages\ListUsers;
-use App\Models\ActivityLog;
-use App\Models\Page;
-use App\Models\User;
-use App\Models\UserPagePermission;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\Testing\TestAction;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Hash;
-use Livewire\Livewire;
-use Tests\TestCase;
+use App\Libraries\UserPermissions;
+use App\Models\UserModel;
+use Tests\Support\TestCase;
 
-class UserManagementTest extends TestCase
+/**
+ * จัดการผู้ใช้งาน + โปรไฟล์
+ */
+final class UserManagementTest extends TestCase
 {
-    use RefreshDatabase;
-
-    protected function setUp(): void
+    private function form(array $override = []): array
     {
-        parent::setUp();
-        $this->seed();
+        return $override + [
+            'username' => ' New.User ', 'email' => ' New@Example.com ', 'first_name' => ' สมชาย ', 'last_name' => 'ใจดี',
+            'phone' => '081-234-5678', 'position' => '', 'role' => 'user', 'is_active' => '1',
+        ];
     }
 
-    // ---------- ล็อกอิน / ล็อกบัญชี ----------
-
-    public function test_five_wrong_passwords_lock_account_for_15_minutes(): void
+    public function testCreateUserNormalizesFieldsWithDefaultPasswordAndPermissions(): void
     {
-        $user = User::factory()->create(['username' => 'staff', 'password' => 'secret123']);
+        $admin  = $this->admin();
+        $pageId = db_connect()->table('pages')->where('code', 'news')->get()->getRowArray()['id'];
 
-        for ($i = 1; $i <= 5; $i++) {
-            Livewire::test(Login::class)
-                ->set('data.username', 'staff')
-                ->set('data.password', 'wrong')
-                ->call('authenticate')
-                ->assertHasErrors(['data.username']);
-        }
+        $this->actingAs($admin)->post('backend/users', $this->form(['pages' => [(string) $pageId]]));
 
-        $user->refresh();
-        $this->assertTrue($user->isLocked());
-        $this->assertEqualsWithDelta(15, now()->diffInMinutes($user->locked_until), 1);
-
-        // ใส่รหัสถูกระหว่างล็อกก็เข้าไม่ได้
-        Livewire::test(Login::class)
-            ->set('data.username', 'staff')
-            ->set('data.password', 'secret123')
-            ->call('authenticate')
-            ->assertHasErrors(['data.username']);
-        $this->assertGuest();
-
-        // ผ่านไป 15 นาทีเข้าได้
-        $this->travel(16)->minutes();
-        Livewire::test(Login::class)
-            ->set('data.username', 'staff')
-            ->set('data.password', 'secret123')
-            ->call('authenticate')
-            ->assertHasNoErrors();
-        $this->assertAuthenticatedAs($user);
-        $this->assertSame(0, $user->refresh()->failed_login_attempts);
-        $this->assertNotNull($user->last_login_at);
+        $user = (new UserModel())->where('username', 'new.user')->first();
+        $this->assertNotNull($user, json_encode(session('errors')));
+        $this->assertSame('new@example.com', $user['email']);
+        $this->assertSame('สมชาย', $user['first_name']);
+        $this->assertSame('0812345678', $user['phone']);
+        $this->assertNull($user['position']);
+        $this->assertSame('1', (string) $user['must_change_password']);
+        $this->assertTrue(password_verify('passwordemcc', $user['password']));
+        $this->assertSame(['news'], UserPermissions::visibleCodes((int) $user['id']));
+        $this->assertSame((int) $admin['id'], (int) $user['created_by']);
+        $this->assertStringNotContainsString('"password"', (string) $this->lastLog('create')['changes']);
     }
 
-    public function test_login_events_are_logged_without_password(): void
+    public function testValidationMessagesAreThai(): void
     {
-        User::factory()->create(['username' => 'staff', 'password' => 'secret123']);
+        $admin = $this->admin();
+        $this->makeUser(['username' => 'taken', 'email' => 'taken@example.com']);
 
-        Livewire::test(Login::class)->set('data.username', 'staff')->set('data.password', 'wrongpass')->call('authenticate');
-        Livewire::test(Login::class)->set('data.username', 'nobody')->set('data.password', 'x')->call('authenticate');
-        Livewire::test(Login::class)->set('data.username', 'staff')->set('data.password', 'secret123')->call('authenticate');
+        $this->actingAs($admin)->post('backend/users', $this->form(['username' => 'มีช่อง ว่าง', 'email' => 'bad', 'first_name' => '', 'phone' => 'abc']));
+        $errors = session('errors');
+        $this->assertStringContainsString('ใช้ได้เฉพาะ a-z', $errors['username']);
+        $this->assertStringContainsString('รูปแบบอีเมลไม่ถูกต้อง', $errors['email']);
+        $this->assertSame('กรุณากรอกชื่อ', $errors['first_name']);
+        $this->assertStringContainsString('ตัวเลข', $errors['phone']);
 
-        $this->assertSame(['login_failed', 'login_failed', 'login'], ActivityLog::whereIn('action', ['login', 'login_failed'])->orderBy('id')->pluck('action')->all());
-        $this->assertNull(ActivityLog::where('description', 'like', '%no***%')->value('user_id'));
-        $this->assertFalse(ActivityLog::where('description', 'like', '%nobody%')->exists());
-
-        $all = ActivityLog::all()->toJson();
-        $this->assertStringNotContainsString('secret123', $all);
-        $this->assertStringNotContainsString('wrongpass', $all);
+        $this->actingAs($admin)->post('backend/users', $this->form(['username' => 'TAKEN', 'email' => 'Taken@example.com']));
+        $this->assertStringContainsString('ถูกใช้แล้ว', session('errors')['username']);
+        $this->assertStringContainsString('ใช้แล้ว', session('errors')['email']);
     }
 
-    // ---------- บังคับเปลี่ยนรหัส ----------
-
-    public function test_user_must_change_password_before_using_other_pages(): void
+    public function testAdministratorCannotManageDevelopersOrAssignDeveloperRole(): void
     {
-        $developer = User::where('username', 'developer')->first();
-        $this->actingAs($developer);
+        $admin = $this->admin();
+        $dev   = $this->admin('developer');
 
-        $this->get('/backend')->assertRedirect('/backend/profile');
-        $this->get('/backend/users')->assertRedirect('/backend/profile');
-        $this->get('/backend/profile')->assertOk()->assertSee('กรุณาตั้งรหัสผ่านใหม่ก่อนเริ่มใช้งาน');
+        $this->actingAs($admin)->get('backend/users/' . $dev['id'] . '/edit')->assertStatus(403);
+        $this->actingAs($admin)->post('backend/users/' . $dev['id'], $this->form())->assertStatus(403);
+        $this->actingAs($admin)->post('backend/users/' . $dev['id'] . '/delete')->assertStatus(403);
+        $this->actingAs($admin)->post('backend/users/' . $dev['id'] . '/reset-password')->assertStatus(403);
 
-        // สั้นเกิน / ซ้ำรหัสเริ่มต้น -> ไม่ผ่าน
-        Livewire::test(EditProfile::class)
-            ->set('data.password', '12345')
-            ->set('data.passwordConfirmation', '12345')
-            ->set('data.currentPassword', 'passwordemcc')
-            ->call('save')
-            ->assertHasErrors(['data.password']);
+        $this->actingAs($admin)->post('backend/users', $this->form(['role' => 'developer']));
+        $this->assertStringContainsString('ไม่มีสิทธิ์กำหนดบทบาทนี้', session('errors')['role']);
 
-        Livewire::test(EditProfile::class)
-            ->set('data.password', 'passwordemcc')
-            ->set('data.passwordConfirmation', 'passwordemcc')
-            ->set('data.currentPassword', 'passwordemcc')
-            ->call('save')
-            ->assertHasErrors(['data.password']);
-
-        Livewire::test(EditProfile::class)
-            ->set('data.password', 'newpass1')
-            ->set('data.passwordConfirmation', 'newpass1')
-            ->set('data.currentPassword', 'passwordemcc')
-            ->call('save')
-            ->assertHasNoErrors();
-
-        $developer->refresh();
-        $this->assertFalse($developer->must_change_password);
-        $this->assertTrue(Hash::check('newpass1', $developer->password));
-        $this->assertNotNull($developer->password_changed_at);
-        $this->assertTrue(ActivityLog::where('action', 'password_change')->exists());
-
-        // (เบราว์เซอร์จริงได้ session ใหม่จากหน้าโปรไฟล์ — ในเทสต์ล้าง session เอง)
-        $this->flushSession()->actingAs($developer)->get('/backend')->assertOk();
+        // developer จัดการได้ทุกคน
+        $this->actingAs($dev)->get('backend/users/' . $admin['id'] . '/edit')->assertOK();
     }
 
-    public function test_profile_updates_own_data(): void
+    public function testCannotDeleteDeactivateOrChangeRoleOfSelf(): void
     {
-        $user = User::factory()->create();
-        $this->actingAs($user);
+        $admin = $this->admin();
 
-        Livewire::test(EditProfile::class)
-            ->set('data.first_name', '  สมชาย ')
-            ->set('data.phone', '081-234-5678')
-            ->call('save')
-            ->assertHasNoErrors();
+        $this->actingAs($admin)->post('backend/users/' . $admin['id'] . '/delete');
+        $this->assertNull((new UserModel())->find($admin['id'])['deleted_at']);
 
-        $user->refresh();
-        $this->assertSame('สมชาย', $user->first_name);
-        $this->assertSame('0812345678', $user->phone);
+        $this->actingAs($admin)->post('backend/users/' . $admin['id'] . '/toggle', ['value' => '0'])->assertStatus(403);
+
+        $this->actingAs($admin)->post('backend/users/' . $admin['id'], $this->form([
+            'username' => $admin['username'], 'email' => $admin['email'], 'role' => 'user', 'is_active' => '0',
+        ]));
+        $fresh = (new UserModel())->find($admin['id']);
+        $this->assertSame('administrator', $fresh['role']);
+        $this->assertSame('1', (string) $fresh['is_active']);
     }
 
-    // ---------- จัดการผู้ใช้งาน ----------
-
-    public function test_only_admins_can_access_user_management_and_logs(): void
+    public function testChangingOwnEmailRequiresCurrentPassword(): void
     {
-        $user = User::factory()->create();
-        UserPagePermission::where('user_id', $user->id)->update(['can_view' => true]);
-        $user->forgetPagePermissions(); // ในระบบจริงแต่ละคำขอโหลดผู้ใช้ใหม่
+        $admin = $this->admin();
+        $data  = $this->form(['username' => $admin['username'], 'email' => 'changed@example.com']);
 
-        $this->actingAs($user);
-        $this->get('/backend/users')->assertForbidden();
-        $this->get('/backend/activity-logs')->assertForbidden();
+        $this->actingAs($admin)->post('backend/users/' . $admin['id'], $data);
+        $this->assertStringContainsString('กรุณากรอกรหัสผ่านปัจจุบัน', session('errors')['current_password']);
 
-        $this->actingAs(User::factory()->administrator()->create());
-        $this->get('/backend/users')->assertOk();
-        $this->get('/backend/activity-logs')->assertOk();
+        $this->actingAs($admin)->post('backend/users/' . $admin['id'], $data + ['current_password' => 'wrong']);
+        $this->assertSame('รหัสผ่านปัจจุบันไม่ถูกต้อง', session('errors')['current_password']);
+
+        $this->actingAs($admin)->post('backend/users/' . $admin['id'], $data + ['current_password' => 'secret123']);
+        $this->assertSame('changed@example.com', (new UserModel())->find($admin['id'])['email']);
+
+        // แก้อีเมลคนอื่นไม่ต้องใช้รหัส
+        $other = $this->makeUser();
+        $this->actingAs($admin)->post('backend/users/' . $other['id'], $this->form(['username' => $other['username'], 'email' => 'other2@example.com']));
+        $this->assertSame('other2@example.com', (new UserModel())->find($other['id'])['email']);
     }
 
-    public function test_admin_creates_user_with_default_password_and_permissions(): void
+    public function testResetPasswordUnlockDeleteAndRestore(): void
     {
-        $this->actingAs(User::factory()->administrator()->create());
+        $admin = $this->admin();
+        $user  = $this->makeUser(['username' => 'staff']);
+        (new UserModel())->updateQuietly($user['id'], ['failed_login_attempts' => 0, 'locked_until' => date('Y-m-d H:i:s', time() + 600)]);
 
-        $news = Page::where('code', 'news')->first();
-        $slides = Page::where('code', 'slides')->first();
+        $this->actingAs($admin)->post('backend/users/' . $user['id'] . '/unlock');
+        $this->assertFalse(UserModel::isLocked((new UserModel())->find($user['id'])));
+        $this->assertSame('unlock', $this->lastLog()['action']);
 
-        Livewire::test(CreateUser::class)
-            ->fillForm([
-                'username' => ' New.User ',
-                'email' => 'new@example.com',
-                'first_name' => 'ใหม่',
-                'last_name' => 'ผู้ใช้',
-                'phone' => '081 234 5678',
-                'role' => User::ROLE_USER,
-                'is_active' => true,
-                'page_permissions' => [$news->id, $slides->id],
-            ])
-            ->call('create')
-            ->assertHasNoFormErrors();
+        $this->actingAs($admin)->post('backend/users/' . $user['id'] . '/reset-password');
+        $fresh = (new UserModel())->find($user['id']);
+        $this->assertTrue(password_verify('passwordemcc', $fresh['password']));
+        $this->assertSame('1', (string) $fresh['must_change_password']);
+        $this->assertSame('password_reset', $this->lastLog()['action']);
 
-        $created = User::where('username', 'new.user')->firstOrFail();
-        $this->assertTrue(Hash::check('passwordemcc', $created->password));
-        $this->assertTrue($created->must_change_password);
-        $this->assertSame('0812345678', $created->phone);
-        $this->assertTrue($created->canViewPage('news'));
-        $this->assertTrue($created->canViewPage('slides'));
-        $this->assertTrue($created->canViewPage('highlight'), 'เมนูแม่เห็นเมื่อมีเมนูย่อยที่เห็น');
-        $this->assertFalse($created->canViewPage('downloads'));
-        $this->assertTrue(ActivityLog::where('action', 'create')->where('subject_id', $created->id)->exists());
+        $this->actingAs($admin)->post('backend/users/' . $user['id'] . '/delete');
+        $this->assertNull((new UserModel())->find($user['id']));
+        $this->assertNotNull((new UserModel())->withDeleted()->find($user['id']));
+
+        $this->actingAs($admin)->post('backend/users/' . $user['id'] . '/restore');
+        $this->assertNotNull((new UserModel())->find($user['id']));
+        $this->assertSame('restore', $this->lastLog()['action']);
     }
 
-    public function test_username_rules(): void
+    public function testProfileUsernameChangeOnlyForAdmins(): void
     {
-        $this->actingAs(User::factory()->administrator()->create());
+        $dev = $this->admin('developer');
+        $this->actingAs($dev)->post('backend/profile', ['username' => ' Dev.Lead ', 'email' => $dev['email'], 'first_name' => 'ก', 'last_name' => 'ข']);
+        $this->assertSame('dev.lead', (new UserModel())->find($dev['id'])['username']);
 
-        Livewire::test(CreateUser::class)
-            ->fillForm(['username' => 'สมชาย', 'email' => 'a@example.com', 'first_name' => 'a', 'last_name' => 'b', 'role' => 'user'])
-            ->call('create')
-            ->assertHasFormErrors(['username' => 'regex']);
-
-        $trashed = User::factory()->create(['username' => 'oldone']);
-        $trashed->delete();
-
-        Livewire::test(CreateUser::class)
-            ->fillForm(['username' => 'oldone', 'email' => 'b@example.com', 'first_name' => 'a', 'last_name' => 'b', 'role' => 'user'])
-            ->call('create')
-            ->assertHasFormErrors(['username' => 'unique']);
+        $user = $this->makeUser(['username' => 'staff']);
+        $res  = $this->actingAs($user)->get('backend/profile');
+        $res->assertSee('ต้องการเปลี่ยนชื่อผู้ใช้ กรุณาติดต่อผู้ดูแลระบบ');
+        $this->actingAs($user)->post('backend/profile', ['username' => 'hacker', 'email' => $user['email'], 'first_name' => 'ก', 'last_name' => 'ข']);
+        $this->assertSame('staff', (new UserModel())->find($user['id'])['username']);
     }
 
-    public function test_administrator_cannot_manage_developer_or_assign_developer_role(): void
+    public function testProfilePasswordChange(): void
     {
-        $admin = User::factory()->administrator()->create();
-        $developer = User::where('username', 'developer')->first();
-        $this->actingAs($admin);
+        $user = $this->makeUser();
 
-        $this->get("/backend/users/{$developer->id}/edit")->assertForbidden();
+        $this->actingAs($user)->post('backend/profile/password', ['current_password_pw' => 'wrong', 'password' => 'newpass1', 'password_confirmation' => 'newpass1']);
+        $this->assertSame('รหัสผ่านปัจจุบันไม่ถูกต้อง', session('errors')['current_password_pw']);
 
-        Livewire::test(CreateUser::class)
-            ->fillForm(['username' => 'x1', 'email' => 'x1@example.com', 'first_name' => 'a', 'last_name' => 'b', 'role' => User::ROLE_DEVELOPER])
-            ->call('create')
-            ->assertHasFormErrors(['role']);
-
-        Livewire::test(ListUsers::class)
-            ->assertActionHidden(TestAction::make('resetPassword')->table($developer))
-            ->assertActionHidden(TestAction::make(DeleteAction::class)->table($developer));
+        $this->actingAs($user)->post('backend/profile/password', ['current_password_pw' => 'secret123', 'password' => ' spaced ', 'password_confirmation' => ' spaced ']);
+        $this->assertTrue(password_verify(' spaced ', (new UserModel())->find($user['id'])['password']), 'รหัสผ่านไม่ถูก trim');
+        $this->assertSame('password_change', $this->lastLog()['action']);
     }
 
-    public function test_cannot_delete_or_deactivate_self(): void
+    public function testUserListAndActivityLogPages(): void
     {
-        $admin = User::factory()->administrator()->create();
-        $this->actingAs($admin);
+        $admin = $this->admin();
+        $res   = $this->actingAs($admin)->get('backend/users?q=' . $admin['username']);
+        $res->assertOK();
+        $res->assertSee($admin['email']);
 
-        Livewire::test(EditUser::class, ['record' => $admin->id])
-            ->assertActionHidden(DeleteAction::class)
-            ->fillForm(['is_active' => false, 'role' => User::ROLE_USER])
-            ->call('save');
+        $res = $this->actingAs($admin)->get('backend/activity-logs?action=create');
+        $res->assertOK();
+        $log = $this->lastLog();
+        $this->actingAs($admin)->get('backend/activity-logs/' . $log['id'])->assertOK();
+        $this->actingAs($admin)->get('backend/activity-logs?from=2026-12-01&until=2026-01-01')->assertSee('วันสิ้นสุดต้องไม่ก่อนวันเริ่ม');
 
-        $admin->refresh();
-        $this->assertTrue($admin->is_active);
-        $this->assertSame(User::ROLE_ADMINISTRATOR, $admin->role);
-        $this->assertFalse($admin->can('delete', $admin));
-    }
-
-    public function test_soft_delete_and_restore_user(): void
-    {
-        $this->actingAs(User::factory()->administrator()->create());
-        $target = User::factory()->create();
-
-        Livewire::test(EditUser::class, ['record' => $target->id])->callAction(DeleteAction::class);
-        $this->assertNotNull(User::withTrashed()->find($target->id)->deleted_at);
-
-        User::withTrashed()->find($target->id)->restore();
-        $this->assertNull(User::find($target->id)->deleted_at);
-        $this->assertSame(['delete', 'restore'], ActivityLog::where('subject_id', $target->id)
-            ->whereIn('action', ['delete', 'restore'])->orderBy('id')->pluck('action')->all());
-    }
-
-    public function test_reset_password_action(): void
-    {
-        $this->actingAs(User::factory()->administrator()->create());
-        $target = User::factory()->create(['password' => 'mypassword', 'locked_until' => now()->addMinutes(10)]);
-
-        Livewire::test(EditUser::class, ['record' => $target->id])->callAction('resetPassword');
-
-        $target->refresh();
-        $this->assertTrue(Hash::check('passwordemcc', $target->password));
-        $this->assertTrue($target->must_change_password);
-        $this->assertFalse($target->isLocked());
-        $this->assertTrue(ActivityLog::where('action', 'password_reset')->exists());
-        $this->assertStringNotContainsString('passwordemcc', ActivityLog::all()->toJson());
-    }
-
-    public function test_activity_log_page_is_read_only(): void
-    {
-        $this->actingAs(User::factory()->developer()->create());
-
-        Livewire::test(ListActivityLogs::class)->assertOk();
-        $this->assertFalse(auth()->user()->can('delete', ActivityLog::first() ?? new ActivityLog));
-        $this->assertFalse(auth()->user()->can('create', ActivityLog::class));
+        // ไม่มีเส้นทางแก้/ลบ log
+        $this->assertNotFound(fn () => $this->actingAs($admin)->post('backend/activity-logs/' . $log['id'] . '/delete'));
     }
 }

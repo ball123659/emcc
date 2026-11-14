@@ -2,298 +2,146 @@
 
 namespace Tests\Feature;
 
-use App\Filament\Resources\Popups\Pages\CreatePopup;
-use App\Filament\Resources\Popups\Pages\ListPopups;
-use App\Filament\Resources\Slides\Pages\CreateSlide;
-use App\Filament\Resources\Slides\Pages\EditSlide;
-use App\Filament\Resources\Slides\Pages\ListSlides;
-use App\Models\Popup;
-use App\Models\Slide;
-use App\Models\User;
-use App\Models\UserPagePermission;
-use App\Services\Images\ImageProcessor;
-use App\Services\Images\ImageRejectedException;
-use App\Services\VirusScan\ScanResult;
-use App\Services\VirusScan\VirusScanner;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Blade;
-use Illuminate\Support\Facades\Storage;
-use Livewire\Livewire;
-use Tests\TestCase;
+use App\Libraries\Storage;
+use App\Models\PopupModel;
+use App\Models\SlideModel;
+use Tests\Support\TestCase;
 
-class HighlightTest extends TestCase
+/**
+ * Slide Show / Popup
+ */
+final class HighlightTest extends TestCase
 {
-    use RefreshDatabase;
-
-    protected function setUp(): void
+    private function slideForm(array $override = []): array
     {
-        parent::setUp();
-        $this->seed();
-        Storage::fake('local');
+        return $override + ['title' => ' สไลด์ ', 'alt_th' => ' คำอธิบาย ', 'link_type' => 'none', 'is_active' => '1', 'open_new_tab' => '1'];
     }
 
-    private function admin(): User
+    public function testCreateSlideConvertsImageToWebpAndTrims(): void
     {
-        return User::factory()->administrator()->create();
+        $admin = $this->admin();
+        $this->upload('image_th', $this->image(4000, 1000));
+        $this->actingAs($admin)->post('backend/slides', $this->slideForm(['link_type' => 'url', 'link_url' => '  https://ieat.go.th  ']));
+
+        $slide = (new SlideModel())->first();
+        $this->assertNotNull($slide, json_encode(session('errors')));
+        $this->assertSame(['สไลด์', 'คำอธิบาย', 'https://ieat.go.th'], [$slide['title'], $slide['alt_th'], $slide['link_url']]);
+        $this->assertMatchesRegularExpression('~^slides/[0-9a-f\-]{36}\.webp$~', $slide['image_th']);
+
+        $info = getimagesize(Storage::path($slide['image_th']));
+        $this->assertSame([1920, 480, 'image/webp'], [$info[0], $info[1], $info['mime']], 'ย่อด้านยาวเหลือ 1920 คงสัดส่วน');
+        $this->assertSame((int) $admin['id'], (int) $slide['created_by']);
+
+        // ภาพเปิดผ่าน /media ได้
+        $res = $this->get('media/' . $slide['image_th']);
+        $res->assertOK();
+        $res->assertHeader('Content-Type', 'image/webp');
     }
 
-    private function slide(array $attributes = []): Slide
+    public function testSlideValidation(): void
     {
-        Storage::disk('local')->put('slides/11111111-1111-1111-1111-111111111111.webp', 'x');
+        $admin = $this->admin();
+        $this->actingAs($admin)->post('backend/slides', ['title' => '', 'alt_th' => '', 'link_type' => 'url', 'link_url' => 'javascript:alert(1)',
+            'start_date' => '2026-12-10', 'end_date' => '2026-12-01']);
+        $errors = session('errors');
+        $this->assertSame('กรุณากรอกชื่อเรียก', $errors['title']);
+        $this->assertStringContainsString('http://', $errors['link_url']);
+        $this->assertStringContainsString('วันสิ้นสุดต้องไม่ก่อนวันเริ่ม', $errors['end_date']);
 
-        return Slide::create($attributes + [
-            'title' => 'สไลด์',
-            'image_th' => 'slides/11111111-1111-1111-1111-111111111111.webp',
-            'alt_th' => 'รูป',
-        ]);
+        // ไม่มีรูป
+        $this->actingAs($admin)->post('backend/slides', $this->slideForm());
+        $this->assertSame('กรุณาเลือกรูป', session('errors')['image_th']);
+
+        // ไฟล์ปลอมนามสกุล .jpg
+        $fake = sys_get_temp_dir() . '/fake.jpg';
+        file_put_contents($fake, '<?php echo 1;');
+        $this->upload('image_th', $fake);
+        $this->actingAs($admin)->post('backend/slides', $this->slideForm());
+        $this->assertStringContainsString('JPG, PNG หรือ WebP', session('errors')['image_th']);
+        $this->assertSame([], $this->storageFiles());
+
+        // ลิงก์ข่าวที่ยังไม่เผยแพร่
+        $this->upload('image_th', $this->image());
+        $this->actingAs($admin)->post('backend/slides', $this->slideForm(['link_type' => 'news', 'news_id' => '999']));
+        $this->assertStringContainsString('ข่าวที่เผยแพร่แล้ว', session('errors')['news_id']);
     }
 
-    // ---------- การประมวลผลรูป ----------
-
-    public function test_image_is_resized_converted_to_webp_with_random_name(): void
+    public function testReplacingImageDeletesOldFile(): void
     {
-        $file = UploadedFile::fake()->image('ภาพ ทดสอบ.png', 3000, 1000);
+        $admin = $this->admin();
+        $this->upload('image_th', $this->image());
+        $this->actingAs($admin)->post('backend/slides', $this->slideForm());
+        $slide = (new SlideModel())->first();
 
-        $stored = app(ImageProcessor::class)->store($file, 'news', withThumbnail: true);
+        $this->upload('image_th', $this->image(800, 600, 'png'));
+        $this->actingAs($admin)->post('backend/slides/' . $slide['id'], $this->slideForm());
+        $new = (new SlideModel())->find($slide['id']);
 
-        $this->assertMatchesRegularExpression('#^news/[0-9a-f\-]{36}\.webp$#', $stored->path);
-        $this->assertSame([1920, 640], [$stored->width, $stored->height]);
-        Storage::disk('local')->assertExists([$stored->path, $stored->thumbPath]);
-
-        $binary = Storage::disk('local')->get($stored->path);
-        $this->assertSame('image/webp', (new \finfo(FILEINFO_MIME_TYPE))->buffer($binary));
-        $this->assertSame(480, getimagesizefromstring(Storage::disk('local')->get($stored->thumbPath))[0]);
+        $this->assertNotSame($slide['image_th'], $new['image_th']);
+        $this->assertSame([$new['image_th']], $this->storageFiles());
     }
 
-    public function test_small_image_is_not_upscaled(): void
+    private function popup(string $title, string $start, string $end, int $active = 1): int
     {
-        $stored = app(ImageProcessor::class)->store(UploadedFile::fake()->image('a.jpg', 800, 600), 'popups');
-
-        $this->assertSame([800, 600], [$stored->width, $stored->height]);
+        return (int) (new PopupModel())->insert(['title' => $title, 'image_th' => 'popups/x.webp', 'alt_th' => 'a', 'start_date' => $start, 'end_date' => $end, 'is_active' => $active]);
     }
 
-    public function test_fake_image_with_image_extension_is_rejected(): void
+    public function testPopupStatusTabsToggleAndExtend(): void
     {
-        $file = UploadedFile::fake()->createWithContent('evil.jpg', '<?php echo "x";');
+        $admin = $this->admin();
+        $today = date('Y-m-d');
+        $this->popup('กำลังแสดง', $today, $today);
+        $this->popup('รอแสดง', date('Y-m-d', strtotime('+3 days')), date('Y-m-d', strtotime('+5 days')));
+        $expired = $this->popup('หมดอายุ', '2020-01-01', '2020-01-05');
+        $this->popup('ปิด', $today, $today, 0);
 
-        $this->expectException(ImageRejectedException::class);
-        app(ImageProcessor::class)->store($file, 'slides');
-    }
-
-    public function test_infected_file_is_rejected(): void
-    {
-        $this->app->bind(VirusScanner::class, fn () => new class implements VirusScanner
-        {
-            public function scan(string $absolutePath): ScanResult
-            {
-                return ScanResult::Infected;
-            }
-        });
-
-        try {
-            app(ImageProcessor::class)->store(UploadedFile::fake()->image('a.jpg'), 'slides');
-            $this->fail('ควรปฏิเสธไฟล์ที่มีไวรัส');
-        } catch (ImageRejectedException $e) {
-            $this->assertStringContainsString('ไวรัส', $e->getMessage());
+        foreach (['showing' => 'กำลังแสดง', 'scheduled' => 'รอแสดง', 'expired' => 'หมดอายุ', 'disabled' => 'ปิด'] as $tab => $title) {
+            $res = $this->actingAs($admin)->get('backend/popups?tab=' . $tab);
+            $res->assertSee('>' . $title . '</a>');
+            $this->assertSame(1, (new PopupModel())->whereStatus($tab)->countAllResults());
         }
 
-        $this->assertSame([], Storage::disk('local')->allFiles('slides'));
+        $res = $this->actingAs($admin)->post('backend/popups/' . $expired . '/toggle', ['value' => '0']);
+        $res->assertJSONFragment(['message' => 'ปิดแสดงแล้ว']);
+
+        $this->actingAs($admin)->post('backend/popups/' . $expired . '/extend');
+        $this->assertSame(date('Y-m-d', strtotime('+7 days')), (new PopupModel())->find($expired)['end_date']);
     }
 
-    public function test_media_route_serves_only_processed_images(): void
+    public function testPopupRequiresDates(): void
     {
-        $stored = app(ImageProcessor::class)->store(UploadedFile::fake()->image('a.jpg'), 'slides');
-
-        $this->get('/media/'.$stored->path)
-            ->assertOk()
-            ->assertHeader('Content-Type', 'image/webp')
-            ->assertHeader('X-Content-Type-Options', 'nosniff');
-
-        $this->get('/media/slides/00000000-0000-0000-0000-000000000000.webp')->assertNotFound();
-        $this->get('/media/../.env')->assertNotFound();
-        $this->get('/media/users/secret.txt')->assertNotFound();
+        $admin = $this->admin();
+        $this->actingAs($admin)->post('backend/popups', ['title' => 'x', 'alt_th' => 'x', 'start_date' => 'not-a-date']);
+        $this->assertStringContainsString('วันเริ่มแสดง', session('errors')['start_date']);
+        $this->assertStringContainsString('วันสิ้นสุด', session('errors')['end_date']);
     }
 
-    // ---------- Slide Show ----------
-
-    public function test_create_slide_with_upload_and_url_link(): void
+    public function testReorderInsideTabKeepsUniqueOrderAndIsLogged(): void
     {
-        $this->actingAs($this->admin());
+        $admin = $this->admin();
+        $today = date('Y-m-d');
+        $a = $this->popup('A', $today, $today);
+        $this->popup('X', date('Y-m-d', strtotime('+2 days')), date('Y-m-d', strtotime('+5 days')));
+        $c = $this->popup('C', $today, $today);
 
-        Livewire::test(CreateSlide::class)
-            ->fillForm([
-                'title' => 'ลด PM2.5',
-                'image_th' => UploadedFile::fake()->image('th.jpg', 2400, 750),
-                'alt_th' => 'ภาพรณรงค์',
-                'link_type' => Slide::LINK_URL,
-                'link_url' => 'https://www.ieat.go.th',
-                'news_id' => null,
-                'is_active' => true,
-            ])
-            ->call('create')
-            ->assertHasNoFormErrors();
+        $this->actingAs($admin)->post('backend/popups/reorder', ['ids' => [(string) $c, (string) $a, '999999']]);
 
-        $slide = Slide::firstOrFail();
-        $this->assertStringEndsWith('.webp', $slide->image_th);
-        Storage::disk('local')->assertExists($slide->image_th);
-        $this->assertSame(1920, getimagesizefromstring(Storage::disk('local')->get($slide->image_th))[0]);
-        $this->assertSame('https://www.ieat.go.th', $slide->link_url);
-        $this->assertSame(1, $slide->sort_order);
-        $this->assertNotNull($slide->created_by);
+        $order = array_column((new PopupModel())->orderBy('sort_order')->findAll(), 'sort_order', 'title');
+        $this->assertSame(['C' => '1', 'X' => '2', 'A' => '3'], array_map('strval', $order));
+        $this->assertSame('reorder', $this->lastLog()['action']);
     }
 
-    public function test_slide_validation(): void
+    public function testDeleteAndRestore(): void
     {
-        $this->actingAs($this->admin());
+        $admin = $this->admin();
+        $id    = $this->popup('ลบได้', date('Y-m-d'), date('Y-m-d'));
 
-        Livewire::test(CreateSlide::class)
-            ->fillForm(['title' => '', 'alt_th' => '', 'link_type' => Slide::LINK_URL, 'link_url' => 'javascript:alert(1)'])
-            ->call('create')
-            ->assertHasFormErrors(['title' => 'required', 'image_th' => 'required', 'alt_th' => 'required', 'link_url']);
+        $this->actingAs($admin)->post('backend/popups/' . $id . '/delete');
+        $this->assertNull((new PopupModel())->find($id));
+        $this->actingAs($admin)->get('backend/popups?tab=trashed')->assertSee('ลบได้');
 
-        Livewire::test(CreateSlide::class)
-            ->fillForm(['link_type' => Slide::LINK_URL, 'link_url' => 'ftp://example.com/file'])
-            ->call('create')
-            ->assertHasFormErrors(['link_url']);
-
-        Livewire::test(CreateSlide::class)
-            ->fillForm(['link_type' => Slide::LINK_NEWS, 'news_id' => null])
-            ->call('create')
-            ->assertHasFormErrors(['news_id' => 'required']);
-
-        Livewire::test(CreateSlide::class)
-            ->fillForm(['start_date' => '2026-12-10', 'end_date' => '2026-12-01'])
-            ->call('create')
-            ->assertHasFormErrors(['end_date' => 'after_or_equal']);
-    }
-
-    public function test_link_fields_are_cleared_when_type_changes(): void
-    {
-        $this->actingAs($this->admin());
-        $slide = $this->slide(['link_type' => Slide::LINK_URL, 'link_url' => 'https://example.com']);
-
-        Livewire::test(EditSlide::class, ['record' => $slide->id])
-            ->fillForm(['link_type' => Slide::LINK_NONE])
-            ->call('save')
-            ->assertHasNoFormErrors();
-
-        $this->assertNull($slide->refresh()->link_url);
-    }
-
-    public function test_replacing_image_deletes_old_file(): void
-    {
-        $slide = $this->slide();
-        $old = $slide->image_th;
-        $new = app(ImageProcessor::class)->store(UploadedFile::fake()->image('new.png', 500, 300), 'slides')->path;
-
-        $slide->update(['image_th' => $new]);
-
-        Storage::disk('local')->assertMissing($old);
-        Storage::disk('local')->assertExists($new);
-    }
-
-    public function test_soft_deleted_slide_keeps_file_and_can_be_restored(): void
-    {
-        $slide = $this->slide();
-        $slide->delete();
-
-        Storage::disk('local')->assertExists($slide->image_th);
-        $this->assertSame(0, Slide::count());
-
-        $slide->restore();
-        $this->assertSame(1, Slide::count());
-    }
-
-    public function test_drag_reorder(): void
-    {
-        $this->actingAs($this->admin());
-        $a = $this->slide(['title' => 'A']);
-        $b = $this->slide(['title' => 'B']);
-        $c = $this->slide(['title' => 'C']);
-
-        Livewire::test(ListSlides::class)->call('reorderTable', [(string) $c->id, (string) $a->id, (string) $b->id]);
-
-        $this->assertSame(['C', 'A', 'B'], Slide::visible()->pluck('title')->all());
-    }
-
-    // ---------- Popup ----------
-
-    public function test_popup_requires_dates_and_valid_range(): void
-    {
-        $this->actingAs($this->admin());
-
-        Livewire::test(CreatePopup::class)
-            ->fillForm(['title' => 'p', 'alt_th' => 'a', 'start_date' => null, 'end_date' => null])
-            ->call('create')
-            ->assertHasFormErrors(['start_date' => 'required', 'end_date' => 'required']);
-
-        Livewire::test(CreatePopup::class)
-            ->fillForm([
-                'title' => 'p',
-                'image_th' => UploadedFile::fake()->image('p.jpg', 800, 800),
-                'alt_th' => 'a',
-                'start_date' => today()->toDateString(),
-                'end_date' => today()->addDays(7)->toDateString(),
-                'link_url' => '',
-            ])
-            ->call('create')
-            ->assertHasNoFormErrors();
-
-        $popup = Popup::firstOrFail();
-        $this->assertNull($popup->link_url);
-        $this->assertSame(Popup::STATUS_SHOWING, $popup->displayStatus());
-    }
-
-    public function test_popup_list_shows_status_badges(): void
-    {
-        $this->actingAs($this->admin());
-        $base = ['image_th' => 'popups/x.webp', 'alt_th' => 'a'];
-        Popup::create($base + ['title' => 'now', 'start_date' => today(), 'end_date' => today()->addDays(2)]);
-        Popup::create($base + ['title' => 'later', 'start_date' => today()->addDay(), 'end_date' => today()->addDays(2)]);
-        Popup::create($base + ['title' => 'old', 'start_date' => today()->subDays(5), 'end_date' => today()->subDay()]);
-        Popup::create($base + ['title' => 'off', 'start_date' => today(), 'end_date' => today(), 'is_active' => false]);
-
-        Livewire::test(ListPopups::class)
-            ->assertSee(['กำลังแสดง', 'รอแสดง', 'หมดอายุ', 'ปิด', 'อีก 2 วันหมดอายุ']);
-    }
-
-    public function test_frontend_popup_component_renders_visible_popups_in_order(): void
-    {
-        $base = ['image_th' => 'popups/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.webp', 'start_date' => today(), 'end_date' => today()];
-        Popup::create($base + ['title' => 'second', 'alt_th' => 'ป๊อปอัปสอง', 'sort_order' => 2]);
-        Popup::create($base + ['title' => 'first', 'alt_th' => 'ป๊อปอัปหนึ่ง', 'sort_order' => 1, 'link_url' => 'https://example.com']);
-        Popup::create($base + ['title' => 'off', 'alt_th' => 'ไม่แสดง', 'is_active' => false]);
-
-        $html = Blade::render('<x-site.popups />');
-
-        $this->assertStringContainsString('ไม่ต้องแสดงอีกวันนี้', $html);
-        $this->assertStringNotContainsString('ไม่แสดง"', $html);
-        $this->assertLessThan(strpos($html, 'ป๊อปอัปสอง'), strpos($html, 'ป๊อปอัปหนึ่ง'));
-        $this->assertStringContainsString('rel="noopener noreferrer"', $html);
-
-        Popup::query()->update(['is_active' => false]);
-        $this->assertSame('', trim(Blade::render('<x-site.popups />')));
-    }
-
-    // ---------- สิทธิ์ ----------
-
-    public function test_page_permissions_are_enforced_per_menu(): void
-    {
-        $user = User::factory()->create();
-        $this->actingAs($user);
-
-        $this->get('/backend/slides')->assertForbidden();
-        $this->get('/backend/popups')->assertForbidden();
-
-        UserPagePermission::where('user_id', $user->id)
-            ->whereIn('page_id', fn ($q) => $q->select('id')->from('pages')->where('code', 'slides'))
-            ->update(['can_view' => true]);
-        $user->forgetPagePermissions(); // ในระบบจริงแต่ละคำขอโหลดผู้ใช้ใหม่
-
-        $this->get('/backend/slides')->assertOk();
-        $this->get('/backend/slides/create')->assertOk();
-        $this->get('/backend/popups')->assertForbidden();
-        $this->assertFalse($user->can('create', Popup::class));
+        $this->actingAs($admin)->post('backend/popups/' . $id . '/restore');
+        $this->assertNotNull((new PopupModel())->find($id));
+        $this->assertSame(['create', 'delete', 'restore'], array_column(db_connect()->table('activity_logs')->where('subject_type', 'popups')->orderBy('id')->get()->getResultArray(), 'action'));
     }
 }
