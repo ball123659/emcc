@@ -1,0 +1,76 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  tests:
+    name: tests (${{ matrix.database }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        database: ['mysql:8.0', 'mariadb:10.4']
+
+    services:
+      mysql:
+        image: ${{ matrix.database }}
+        env:
+          MYSQL_ROOT_PASSWORD: secret
+          MYSQL_DATABASE: emcc_test
+          MARIADB_ROOT_PASSWORD: secret
+          MARIADB_DATABASE: emcc_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -psecret"
+          --health-interval=10s --health-timeout=5s --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: gd, intl, fileinfo, mysqli, mbstring, zip, exif
+          coverage: none
+
+      - run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: PHP syntax
+        run: find app tests -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
+
+      - name: Tests
+        run: vendor/bin/phpunit --no-coverage
+        env:
+          CI_ENVIRONMENT: testing
+          database_tests_hostname: 127.0.0.1
+          database_tests_database: emcc_test
+          database_tests_username: root
+          database_tests_password: secret
+          database_tests_DBDriver: MySQLi
+          database_tests_port: 3306
+
+      - name: Schema matches webemcc.sql
+        env:
+          MYSQL_PWD: secret
+          CI_ENVIRONMENT: development
+          database_default_hostname: 127.0.0.1
+          database_default_database: emcc_mig
+          database_default_username: root
+          database_default_password: secret
+        run: |
+          sed 's/`webemcc`/`emcc_sql`/g' database/webemcc.sql | mysql -h 127.0.0.1 -uroot
+          mysql -h 127.0.0.1 -uroot -e "CREATE DATABASE emcc_mig CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci"
+          php spark migrate --all
+          php spark db:seed DatabaseSeeder
+          for t in users pages user_page_permissions slides popups news_categories news news_images news_attachments download_categories downloads site_settings activity_logs; do
+            for db in emcc_sql emcc_mig; do
+              mysql -h 127.0.0.1 -uroot -N -e "SHOW CREATE TABLE \`$db\`.\`$t\`" | cut -f2 | sed -e 's/ AUTO_INCREMENT=[0-9]*//' > "$db.$t.sql"
+            done
+            diff -u "emcc_sql.$t.sql" "emcc_mig.$t.sql"
+          done
+          database_default_database=emcc_sql php spark migrate --all
+          php spark emcc:check || true
