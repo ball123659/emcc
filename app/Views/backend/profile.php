@@ -17,8 +17,8 @@ $canUsername = UserModel::isAdmin($me);
         <div class="span-full" data-self-email="<?= esc($me['email'], 'attr') ?>" <?= field_error('current_password') ? '' : 'hidden' ?>>
             <?= text_field('current_password', ['label' => 'รหัสผ่านปัจจุบัน', 'type' => 'password', 'required' => true, 'autocomplete' => 'current-password', 'hint' => 'เปลี่ยนอีเมลต้องยืนยันรหัสผ่าน']) ?>
         </div>
-        <?= text_field('first_name', ['label' => 'ชื่อ', 'value' => $me['first_name'], 'required' => true, 'maxlength' => 72]) ?>
-        <?= text_field('last_name', ['label' => 'นามสกุล', 'value' => $me['last_name'], 'required' => true, 'maxlength' => 72]) ?>
+        <?= text_field('first_name', ['label' => 'ชื่อ', 'value' => $me['first_name'], 'required' => true, 'maxlength' => 100]) ?>
+        <?= text_field('last_name', ['label' => 'นามสกุล', 'value' => $me['last_name'], 'required' => true, 'maxlength' => 100]) ?>
         <?= text_field('phone', ['label' => 'เบอร์โทรศัพท์', 'type' => 'tel', 'value' => $me['phone'] ?? '', 'maxlength' => 30, 'pattern' => '[0-9\-\s]*', 'pattern_message' => 'เบอร์โทรศัพท์ใส่ได้เฉพาะตัวเลขและขีด (-)', 'hint' => 'ตัวอย่าง 081-234-5678 (ระบบเก็บเฉพาะตัวเลข)']) ?>
         <?= text_field('position', ['label' => 'ตำแหน่ง', 'value' => $me['position'] ?? '', 'maxlength' => 150]) ?>
     <?= section_close() ?>
