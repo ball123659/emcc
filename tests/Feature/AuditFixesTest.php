@@ -146,7 +146,7 @@ final class AuditFixesTest extends TestCase
     public function testPublicPagesDoNotStartSessions(): void
     {
         $filters = config('Filters')->globals['before'];
-        $this->assertSame(['/', 'media/*', 'downloads/*', 'news/attachments/*'], $filters['csrf']['except']);
+        $this->assertSame(['/', 'news', 'news/*', 'about', 'contact', 'downloads', 'downloads/*', 'lang/*', 'media/*'], $filters['csrf']['except']);
     }
 
     public function testUserRowLinksToActivityLogAndFileReselectNotice(): void

@@ -2,7 +2,12 @@
 
 use CodeIgniter\Router\RouteCollection;
 
-$routes->get('/', 'Home::index');
+$routes->get('/', 'Site::home');
+$routes->get('news', 'Site::news');
+$routes->get('about', 'Site::about');
+$routes->get('contact', 'Site::contact');
+$routes->get('downloads', 'Site::downloads');
+$routes->get('lang/(th|en)', 'Site::lang/$1');
 
 $routes->get('media/(slides|popups|news|settings)/([0-9a-f\-]{36}(?:_thumb)?\.webp)', 'Media::show/$1/$2');
 
@@ -10,6 +15,7 @@ $routes->get('downloads/(:segment)', 'Downloads::show/$1');
 $routes->match(['HEAD'], 'downloads/(:segment)', 'Downloads::show/$1');
 
 $routes->get('news/attachments/(:segment)', 'NewsAttachments::show/$1');
+$routes->get('news/(:segment)', 'Site::newsShow/$1');
 
 $routes->group('backend', ['namespace' => 'App\Controllers\Backend'], static function (RouteCollection $routes): void {
     $routes->get('login', 'Auth::login');

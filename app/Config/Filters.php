@@ -9,6 +9,7 @@ use App\Filters\Csrf;
 use App\Filters\PagePermission;
 use App\Filters\PostTooLarge;
 use App\Filters\SecurityHeaders;
+use App\Filters\SiteLocale;
 use CodeIgniter\Config\Filters as BaseFilters;
 use CodeIgniter\Filters\Cors;
 use CodeIgniter\Filters\DebugToolbar;
@@ -39,6 +40,7 @@ class Filters extends BaseFilters
         'admin'        => AdminOnly::class,
         'posttoolarge' => PostTooLarge::class,
         'cleaninput'   => CleanInput::class,
+        'sitelocale'   => SiteLocale::class,
     ];
 
     public array $required = [
@@ -55,9 +57,11 @@ class Filters extends BaseFilters
     public array $globals = [
         'before' => [
             'emccsecurity',
+            'sitelocale' => ['except' => ['backend', 'backend/*']],
             'posttoolarge',
 
-            'csrf' => ['except' => ['/', 'media/*', 'downloads/*', 'news/attachments/*']],
+            // หน้าบ้านเป็น GET ล้วน ไม่ต้องเปิด session (ไม่สร้าง session cookie ให้ผู้เข้าชม)
+            'csrf' => ['except' => ['/', 'news', 'news/*', 'about', 'contact', 'downloads', 'downloads/*', 'lang/*', 'media/*']],
             'cleaninput',
         ],
         'after' => [

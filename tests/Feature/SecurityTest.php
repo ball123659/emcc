@@ -20,7 +20,7 @@ final class SecurityTest extends TestCase
 
         $home = $this->get('/');
         $home->assertOK();
-        $home->assertSee('เว็บไซต์กำลังปรับปรุง');
+        $home->assertSee('ข่าวสาร');
         $this->assertFalse($home->response()->hasHeader('X-Robots-Tag'));
         $this->assertStringContainsString('Disallow: /backend', (string) file_get_contents(FCPATH . 'robots.txt'));
     }
