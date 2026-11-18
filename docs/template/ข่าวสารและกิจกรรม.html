@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ข่าวสารและกิจกรรม — EMCC</title>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --purple: #704a9f;
+      --purple-2: #8a63b8;
+      --purple-dark: #4e3272;
+      --purple-soft: #f0ebf8;
+      --purple-tint: #f8f5fc;
+      --green: #0e975f;
+      --green-2: #2fb37e;
+      --green-dark: #0a6f46;
+      --green-soft: #e6f6ee;
+      --orange: #e86e2f;
+      --alert: #d94848;
+      --watch: #f5bd35;
+      --text: #1b2533;
+      --muted: #5d6b7e;
+      --line: #e4e8ef;
+      --bg: #f6f7fb;
+      --white: #ffffff;
+      --shadow-sm: 0 6px 18px rgba(74, 31, 107, 0.08);
+      --shadow: 0 14px 36px rgba(74, 31, 107, 0.13);
+      --shadow-lg: 0 24px 60px rgba(74, 31, 107, 0.18);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin:0; font-family:"Prompt",sans-serif; color:var(--text); background:var(--bg); -webkit-font-smoothing:antialiased; }
+    a { text-decoration:none; color:inherit; }
+    a:hover { color: var(--purple); }
+    img { max-width:100%; display:block; }
+    .container { width:min(1220px, calc(100% - 32px)); margin:0 auto; }
+
+    /* Top bar */
+    .topbar { background:linear-gradient(90deg,var(--purple-dark) 0%,var(--purple) 60%,var(--green-dark) 100%); color:#f4f0ff; font-size:13px; }
+    .topbar-inner { min-height:40px; display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; }
+    .top-left,.top-right { display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+    .lang { display:flex; align-items:center; gap:8px; }
+    .lang button { border:1px solid rgba(255,255,255,.4); background:transparent; color:#fff; border-radius:999px; padding:4px 11px; font-family:inherit; cursor:pointer; font-size:12px; transition:all .2s; }
+    .lang button.active { background:#fff; color:var(--purple-dark); }
+
+    /* Header */
+    .header { position:sticky; top:0; z-index:1000; background:rgba(255,255,255,.97); backdrop-filter:blur(10px); box-shadow:0 4px 18px rgba(74,31,107,.08); border-bottom:1px solid rgba(74,31,107,.06); }
+    .header-inner { min-height:78px; display:flex; align-items:center; justify-content:space-between; gap:20px; }
+    .brand { display:flex; align-items:center; gap:14px; min-width:0; flex:1; }
+    .logo { width:56px; height:56px; border-radius:14px; background:#fff; padding:5px; display:grid; place-items:center; box-shadow:0 8px 18px rgba(112,74,159,.20); border:1px solid var(--line); flex-shrink:0; overflow:hidden; }
+    .logo img { width:100%; height:100%; object-fit:contain; display:block; }
+    .brand-text { min-width:0; }
+    .brand strong { display:block; color:var(--purple-dark); font-size:16px; line-height:1.25; }
+    .brand span { display:block; color:var(--muted); font-size:12px; margin-top:2px; }
+    .nav { display:flex; align-items:center; gap:2px; }
+    .nav a { padding:10px 13px; border-radius:10px; font-size:14px; font-weight:500; color:#2b3a4f; transition:all .18s; }
+    .nav a:hover, .nav a.active { background:var(--purple-soft); color:var(--purple); }
+    .login-btn { background:linear-gradient(135deg,var(--purple),var(--green)) !important; color:#fff !important; border-radius:999px !important; padding:10px 18px !important; margin-left:6px; box-shadow:0 8px 18px rgba(107,44,145,.22); }
+    .login-btn:hover { color:#fff !important; }
+    .mobile-toggle { display:none; width:44px; height:44px; border:1px solid var(--line); background:#fff; border-radius:12px; cursor:pointer; align-items:center; justify-content:center; flex-direction:column; gap:4px; }
+    .mobile-toggle span { width:20px; height:2px; background:var(--purple-dark); border-radius:2px; transition:transform .25s,opacity .25s; }
+    .mobile-toggle.open span:nth-child(1){ transform:translateY(6px) rotate(45deg); }
+    .mobile-toggle.open span:nth-child(2){ opacity:0; }
+    .mobile-toggle.open span:nth-child(3){ transform:translateY(-6px) rotate(-45deg); }
+
+    /* Drawer */
+    .drawer-backdrop { position:fixed; inset:0; background:rgba(20,10,35,.5); backdrop-filter:blur(3px); z-index:1100; opacity:0; pointer-events:none; transition:opacity .25s; }
+    .drawer-backdrop.open { opacity:1; pointer-events:auto; }
+    .drawer { position:fixed; top:0; right:0; width:min(340px,86vw); height:100vh; background:#fff; z-index:1101; transform:translateX(100%); transition:transform .3s ease; box-shadow:-20px 0 40px rgba(0,0,0,.2); display:flex; flex-direction:column; }
+    .drawer.open { transform:translateX(0); }
+    .drawer-head { padding:18px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); }
+    .drawer-head strong { color:var(--purple-dark); font-size:15px; }
+    .drawer-close { width:36px; height:36px; border-radius:10px; border:1px solid var(--line); background:#fff; cursor:pointer; font-size:18px; color:var(--purple-dark); }
+    .drawer-nav { display:flex; flex-direction:column; padding:12px; gap:4px; }
+    .drawer-nav a { padding:14px 16px; border-radius:12px; font-size:15px; font-weight:500; color:#2b3a4f; }
+    .drawer-nav a:hover, .drawer-nav a.active { background:var(--purple-soft); color:var(--purple); }
+    .drawer-nav a.login-btn { margin-top:8px; background:linear-gradient(135deg,var(--purple),var(--green)) !important; color:#fff !important; text-align:center; }
+
+    /* Page banner */
+    .page-banner { position:relative; overflow:hidden; color:#fff; background:linear-gradient(115deg,#3a1a5e 0%,#6b2c91 48%,#2aa46a 100%); }
+    .page-banner::before { content:""; position:absolute; inset:0; background-image:linear-gradient(rgba(255,255,255,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.08) 1px,transparent 1px); background-size:46px 46px; opacity:.18; }
+    .page-banner::after { content:""; position:absolute; right:-140px; bottom:-160px; width:420px; height:420px; border-radius:50%; background:rgba(255,255,255,.08); }
+    .banner-inner { position:relative; z-index:1; padding:48px 0 56px; }
+    .breadcrumb { font-size:13px; color:#e6dcff; margin-bottom:14px; display:flex; gap:8px; align-items:center; }
+    .breadcrumb a:hover { color:#fff; }
+    .page-banner h1 { margin:0; font-size:clamp(28px,4vw,44px); font-weight:600; letter-spacing:-.02em; }
+    .page-banner p { margin:14px 0 0; max-width:640px; color:#f1ecff; line-height:1.7; font-size:16px; }
+
+    /* Category tabs */
+    .cat-bar { background:#fff; border-bottom:1px solid var(--line); position:sticky; top:78px; z-index:900; }
+    .cat-tabs { display:flex; gap:6px; overflow-x:auto; padding:14px 0; scrollbar-width:none; }
+    .cat-tabs::-webkit-scrollbar { display:none; }
+    .cat-tabs button { flex:0 0 auto; border:1px solid var(--line); background:#fff; color:#37506b; border-radius:999px; padding:9px 18px; font-family:inherit; font-size:14px; font-weight:500; cursor:pointer; transition:all .18s; white-space:nowrap; }
+    .cat-tabs button:hover { border-color:var(--purple); color:var(--purple); }
+    .cat-tabs button.active { background:var(--purple); color:#fff; border-color:var(--purple); }
+
+    /* Layout */
+    .page-wrap { padding:44px 0 20px; }
+    .section-head { display:flex; justify-content:space-between; align-items:end; gap:16px; margin-bottom:22px; flex-wrap:wrap; }
+    .section-head h2 { margin:0; color:var(--purple-dark); font-size:clamp(20px,2.4vw,26px); font-weight:600; letter-spacing:-.02em; }
+    .section-head .see-all { color:var(--purple); font-weight:600; font-size:14px; }
+
+    /* Featured */
+    .featured { display:grid; grid-template-columns:1.15fr .85fr; gap:0; background:#fff; border:1px solid var(--line); border-radius:24px; overflow:hidden; box-shadow:var(--shadow); margin-bottom:44px; }
+    .featured-img { position:relative; min-height:340px; display:grid; place-items:center; font-size:72px; }
+    .featured-body { padding:34px; display:flex; flex-direction:column; justify-content:center; }
+    .chip { display:inline-flex; align-items:center; gap:6px; align-self:flex-start; padding:5px 13px; border-radius:999px; font-size:12px; font-weight:600; margin-bottom:14px; }
+    .chip.green { background:var(--green-soft); color:var(--green-dark); }
+    .chip.purple { background:var(--purple-soft); color:var(--purple); }
+    .chip.watch { background:rgba(245,189,53,.18); color:#986f00; }
+    .chip.alert { background:rgba(217,72,72,.12); color:var(--alert); }
+    .featured-body h3 { margin:0 0 12px; font-size:clamp(22px,2.6vw,30px); color:var(--purple-dark); line-height:1.3; font-weight:600; }
+    .featured-body p { margin:0 0 20px; color:var(--muted); line-height:1.75; font-size:15px; }
+    .article-meta { display:flex; gap:16px; color:var(--muted); font-size:13px; margin-bottom:20px; }
+    .article-meta span { display:inline-flex; align-items:center; gap:6px; }
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; border:none; border-radius:999px; padding:12px 22px; font-family:inherit; font-weight:600; cursor:pointer; font-size:14px; transition:all .2s; align-self:flex-start; }
+    .btn-primary { background:linear-gradient(135deg,var(--purple),var(--green)); color:#fff; }
+    .btn-primary:hover { transform:translateY(-1px); box-shadow:0 12px 24px rgba(107,44,145,.24); color:#fff; }
+
+    /* Article grid */
+    .article-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:22px; }
+    .article-card { background:#fff; border:1px solid var(--line); border-radius:20px; overflow:hidden; box-shadow:var(--shadow-sm); transition:transform .2s,box-shadow .2s; display:flex; flex-direction:column; }
+    .article-card:hover { transform:translateY(-4px); box-shadow:var(--shadow); }
+    .card-img { position:relative; height:180px; display:grid; place-items:center; font-size:48px; }
+    .card-img .chip { position:absolute; top:14px; left:14px; margin:0; backdrop-filter:blur(4px); background:rgba(255,255,255,.9); }
+    .card-body { padding:20px; display:flex; flex-direction:column; flex:1; }
+    .card-body h3 { margin:0 0 10px; color:var(--purple-dark); font-size:17px; line-height:1.4; font-weight:600; }
+    .card-body p { margin:0 0 16px; color:var(--muted); font-size:13.5px; line-height:1.65; flex:1; }
+    .card-foot { display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--line); padding-top:14px; color:var(--muted); font-size:12.5px; }
+    .card-foot .read { color:var(--purple); font-weight:600; }
+
+    /* Image placeholder gradients */
+    .g1 { background:linear-gradient(135deg,#6b2c91,#2aa46a); color:#fff; }
+    .g2 { background:linear-gradient(135deg,#137a47,#4ac084); color:#fff; }
+    .g3 { background:linear-gradient(135deg,#8a3fb8,#6b2c91); color:#fff; }
+    .g4 { background:linear-gradient(135deg,#f3ecfa,#e8f8ef); color:var(--purple); }
+    .g5 { background:linear-gradient(135deg,#2aa46a,#137a47); color:#fff; }
+    .g6 { background:linear-gradient(135deg,#4a1f6b,#8a3fb8); color:#fff; }
+    .g7 { background:linear-gradient(135deg,#e8f8ef,#d5f0e2); color:var(--green-dark); }
+
+    /* Events section */
+    .events { background:#fff; border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:52px 0; margin-top:44px; }
+    .events-layout { display:grid; grid-template-columns:1.6fr 1fr; gap:30px; align-items:start; }
+    .event-list { display:grid; gap:14px; }
+    .event-item { display:flex; gap:18px; align-items:center; background:#fff; border:1px solid var(--line); border-radius:18px; padding:16px 18px; transition:all .18s; }
+    .event-item:hover { border-color:var(--purple); box-shadow:var(--shadow-sm); }
+    .event-date { flex-shrink:0; width:66px; text-align:center; border-radius:14px; padding:10px 0; background:linear-gradient(135deg,var(--purple-soft),var(--green-soft)); }
+    .event-date strong { display:block; font-size:24px; color:var(--purple-dark); line-height:1; }
+    .event-date span { display:block; font-size:12px; color:var(--muted); margin-top:4px; }
+    .event-info { flex:1; min-width:0; }
+    .event-info h4 { margin:0 0 5px; color:var(--text); font-size:15.5px; font-weight:600; }
+    .event-info .ev-meta { color:var(--muted); font-size:13px; display:flex; gap:14px; flex-wrap:wrap; }
+    .event-tag { flex-shrink:0; }
+
+    .side-card { background:linear-gradient(135deg,var(--purple-tint),#fff); border:1px solid var(--line); border-radius:20px; padding:24px; box-shadow:var(--shadow-sm); }
+    .side-card h3 { margin:0 0 8px; color:var(--purple-dark); font-size:18px; }
+    .side-card p { margin:0 0 18px; color:var(--muted); font-size:13.5px; line-height:1.7; }
+    .side-card .btn-primary { width:100%; }
+    .tag-cloud { display:flex; flex-wrap:wrap; gap:8px; margin-top:22px; }
+    .tag-cloud a { padding:7px 14px; border-radius:999px; background:#fff; border:1px solid var(--line); font-size:13px; color:#37506b; }
+    .tag-cloud a:hover { border-color:var(--purple); color:var(--purple); }
+
+    /* Pagination */
+    .pagination { display:flex; justify-content:center; gap:8px; padding:44px 0; }
+    .pagination button { width:42px; height:42px; border-radius:12px; border:1px solid var(--line); background:#fff; color:#37506b; font-family:inherit; font-size:14px; cursor:pointer; transition:all .18s; }
+    .pagination button:hover { border-color:var(--purple); color:var(--purple); }
+    .pagination button.active { background:var(--purple); color:#fff; border-color:var(--purple); }
+    .pagination button.nav-btn { width:auto; padding:0 16px; }
+
+    /* Footer */
+    .footer { background:linear-gradient(95deg,var(--purple-dark) 0%,#2c1647 50%,#0f3a25 100%); color:#eee9ff; padding:42px 0 28px; }
+    .footer-grid { display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:26px; }
+    .footer h4 { margin:0 0 12px; color:#fff; font-size:15px; }
+    .footer p, .footer a { color:#d9d1f2; font-size:13px; line-height:1.75; margin:0; display:block; }
+    .footer a:hover { color:#fff; }
+    .footer-bottom { border-top:1px solid rgba(255,255,255,.12); margin-top:28px; padding-top:18px; color:#bcb0d8; font-size:12px; text-align:center; }
+
+    .hidden { display:none !important; }
+
+    @media (max-width:1060px) {
+      .nav { display:none; }
+      .mobile-toggle { display:flex; }
+      .cat-bar { top:68px; }
+      .featured { grid-template-columns:1fr; }
+      .featured-img { min-height:220px; }
+      .article-grid { grid-template-columns:repeat(2,1fr); }
+      .events-layout { grid-template-columns:1fr; }
+      .footer-grid { grid-template-columns:1fr; }
+    }
+    @media (max-width:720px) {
+      .topbar-inner { padding:8px 0; font-size:12px; }
+      .top-left span:nth-child(2){ display:none; }
+      .header-inner { min-height:68px; }
+      .logo { width:46px; height:46px; border-radius:13px; font-size:14px; }
+      .brand strong { font-size:14px; }
+      .brand span { font-size:11px; }
+      .banner-inner { padding:36px 0 42px; }
+      .article-grid { grid-template-columns:1fr; }
+      .featured-body { padding:24px; }
+      .event-item { flex-wrap:wrap; }
+      .event-tag { order:3; }
+    }
+    @media (max-width:420px) {
+      .top-left span:nth-child(3){ display:none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="container topbar-inner">
+      <div class="top-left">
+        <span data-th="📞 Call Center : 02 207 2700" data-en="📞 Call Center : 02 207 2700">📞 Call Center : 02 207 2700</span>
+        <span data-th="💬 Live Chat" data-en="💬 Live Chat">💬 Live Chat</span>
+        <span data-th="⚠ แจ้งเหตุ/ร้องเรียน" data-en="⚠ Complaint Center">⚠ แจ้งเหตุ/ร้องเรียน</span>
+      </div>
+      <div class="top-right">
+        <div class="lang">
+          <span data-th="ภาษา" data-en="Language">ภาษา</span>
+          <button class="active" onclick="setLang('th', this)">TH</button>
+          <button onclick="setLang('en', this)">EN</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="container header-inner">
+      <a class="brand" href="EMCC Portal.html">
+        <div class="logo"><img src="ieat-logo.jpg" alt="I-EA-T" /></div>
+        <div class="brand-text">
+          <strong data-th="ศูนย์เฝ้าระวังและควบคุมคุณภาพสิ่งแวดล้อม" data-en="Environment Monitoring and Control Center">ศูนย์เฝ้าระวังและควบคุมคุณภาพสิ่งแวดล้อม</strong>
+          <span data-th="Industrial Emission &amp; Wastewater Monitoring" data-en="Industrial Emission &amp; Wastewater Monitoring">Industrial Emission &amp; Wastewater Monitoring</span>
+        </div>
+      </a>
+      <nav class="nav">
+        <a href="EMCC Portal.html" data-th="หน้าหลัก" data-en="Home">หน้าหลัก</a>
+        <a href="EMCC Portal.html#map" data-th="แผนที่โรงงาน" data-en="Factory Map">แผนที่โรงงาน</a>
+        <a href="EMCC Portal.html#news" data-th="ข่าวประกาศ" data-en="Announcements">ข่าวประกาศ</a>
+        <a href="EMCC Portal.html#download" data-th="ดาวน์โหลด" data-en="Downloads">ดาวน์โหลด</a>
+        <a class="active" href="ข่าวสารและกิจกรรม.html" data-th="ข่าวสาร" data-en="News">ข่าวสาร</a>
+        <a href="EMCC Portal.html#about" data-th="เกี่ยวกับ" data-en="About">เกี่ยวกับ</a>
+        <a class="login-btn" href="#" data-th="เข้าสู่ระบบ" data-en="Login">เข้าสู่ระบบ</a>
+      </nav>
+      <button class="mobile-toggle" id="mobileToggle" aria-label="Menu"><span></span><span></span><span></span></button>
+    </div>
+  </header>
+
+  <!-- Drawer -->
+  <div class="drawer-backdrop" id="drawerBackdrop"></div>
+  <aside class="drawer" id="drawer">
+    <div class="drawer-head">
+      <strong data-th="เมนู" data-en="Menu">เมนู</strong>
+      <button class="drawer-close" id="drawerClose" aria-label="Close">✕</button>
+    </div>
+    <nav class="drawer-nav">
+      <a href="EMCC Portal.html" data-th="หน้าหลัก" data-en="Home">หน้าหลัก</a>
+      <a href="EMCC Portal.html#map" data-th="แผนที่โรงงาน" data-en="Factory Map">แผนที่โรงงาน</a>
+      <a href="EMCC Portal.html#news" data-th="ข่าวประกาศ" data-en="Announcements">ข่าวประกาศ</a>
+      <a href="EMCC Portal.html#download" data-th="ดาวน์โหลด" data-en="Downloads">ดาวน์โหลด</a>
+      <a class="active" href="ข่าวสารและกิจกรรม.html" data-th="ข่าวสาร" data-en="News">ข่าวสาร</a>
+      <a href="EMCC Portal.html#about" data-th="เกี่ยวกับ" data-en="About">เกี่ยวกับ</a>
+      <a class="login-btn" href="#" data-th="เข้าสู่ระบบ" data-en="Login">เข้าสู่ระบบ</a>
+    </nav>
+  </aside>
+
+  <!-- Page banner -->
+  <section class="page-banner">
+    <div class="container banner-inner">
+      <div class="breadcrumb">
+        <a href="EMCC Portal.html" data-th="หน้าหลัก" data-en="Home">หน้าหลัก</a>
+        <span>›</span>
+        <span data-th="ข่าวสารและกิจกรรม" data-en="News &amp; Activities">ข่าวสารและกิจกรรม</span>
+      </div>
+      <h1 data-th="ข่าวสารและกิจกรรม" data-en="News &amp; Activities">ข่าวสารและกิจกรรม</h1>
+      <p data-th="รวมบทความ ประกาศ ข่าวระบบ และกิจกรรมด้านการเฝ้าระวังและควบคุมคุณภาพสิ่งแวดล้อมจากโรงงานในนิคมอุตสาหกรรม" data-en="Articles, announcements, system news and activities on industrial environmental monitoring and control.">รวมบทความ ประกาศ ข่าวระบบ และกิจกรรมด้านการเฝ้าระวังและควบคุมคุณภาพสิ่งแวดล้อมจากโรงงานในนิคมอุตสาหกรรม</p>
+    </div>
+  </section>
+
+  <!-- Category tabs -->
+  <div class="cat-bar">
+    <div class="container">
+      <div class="cat-tabs" id="catTabs">
+        <button class="active" data-cat="all" data-th="ทั้งหมด" data-en="All">ทั้งหมด</button>
+        <button data-cat="announce" data-th="ประกาศ" data-en="Announcements">ประกาศ</button>
+        <button data-cat="system" data-th="ข่าวระบบ" data-en="System News">ข่าวระบบ</button>
+        <button data-cat="article" data-th="บทความ" data-en="Articles">บทความ</button>
+        <button data-cat="event" data-th="กิจกรรม" data-en="Activities">กิจกรรม</button>
+        <button data-cat="report" data-th="รายงาน" data-en="Reports">รายงาน</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="page-wrap">
+    <div class="container">
+
+      <!-- Featured -->
+      <article class="featured" data-cat="article">
+        <div class="featured-img g1">🌫️</div>
+        <div class="featured-body">
+          <span class="chip watch" data-th="บทความเด่น" data-en="Featured">บทความเด่น</span>
+          <h3 data-th="เข้าใจค่าการระบายมลพิษจากปล่อง CEMS อ่านอย่างไรให้ถูกต้อง" data-en="Understanding CEMS stack emission values — how to read them correctly">เข้าใจค่าการระบายมลพิษจากปล่อง CEMS อ่านอย่างไรให้ถูกต้อง</h3>
+          <p data-th="ทำความรู้จักพารามิเตอร์หลักอย่าง SO₂, NOx, O₂ และ Flow พร้อมวิธีตีความสถานะ ปกติ–เฝ้าระวัง–เกินเกณฑ์ เพื่อให้ประชาชนและผู้ประกอบการเข้าใจข้อมูลบนแผนที่ได้อย่างถูกต้อง" data-en="Get to know key parameters such as SO₂, NOx, O₂ and flow, and how to interpret normal, watch and exceed status so the public and operators can read the map correctly.">ทำความรู้จักพารามิเตอร์หลักอย่าง SO₂, NOx, O₂ และ Flow พร้อมวิธีตีความสถานะ ปกติ–เฝ้าระวัง–เกินเกณฑ์ เพื่อให้ประชาชนและผู้ประกอบการเข้าใจข้อมูลบนแผนที่ได้อย่างถูกต้อง</p>
+          <div class="article-meta">
+            <span>📅 <span data-th="5 พ.ค. 2569" data-en="5 May 2026">5 พ.ค. 2569</span></span>
+            <span>👁 1,204</span>
+          </div>
+          <a class="btn btn-primary" href="ข่าวรายละเอียด.html" data-th="อ่านบทความ →" data-en="Read article →">อ่านบทความ →</a>
+        </div>
+      </article>
+
+      <!-- Latest articles -->
+      <div class="section-head">
+        <h2 data-th="ล่าสุด" data-en="Latest">ล่าสุด</h2>
+        <a class="see-all" href="#" data-th="ดูทั้งหมด →" data-en="See all →">ดูทั้งหมด →</a>
+      </div>
+
+      <div class="article-grid" id="articleGrid">
+
+        <article class="article-card" data-cat="announce">
+          <div class="card-img g4">📢<span class="chip purple" data-th="ประกาศ" data-en="Announce">ประกาศ</span></div>
+          <div class="card-body">
+            <h3 data-th="ประกาศปรับปรุงระบบเชื่อมต่อข้อมูล CEMS/WPMS" data-en="CEMS/WPMS data connection maintenance notice">ประกาศปรับปรุงระบบเชื่อมต่อข้อมูล CEMS/WPMS</h3>
+            <p data-th="แจ้งช่วงเวลาปิดปรับปรุงระบบเชื่อมต่อข้อมูลและผลกระทบต่อการแสดงผลบนแผนที่" data-en="Maintenance window for the data connection system and its impact on map display.">แจ้งช่วงเวลาปิดปรับปรุงระบบเชื่อมต่อข้อมูลและผลกระทบต่อการแสดงผลบนแผนที่</p>
+            <div class="card-foot"><span data-th="5 พ.ค. 2569" data-en="5 May 2026">5 พ.ค. 2569</span><span class="read" data-th="อ่านต่อ →" data-en="Read →">อ่านต่อ →</span></div>
+          </div>
+        </article>
+
+        <article class="article-card" data-cat="report">
+          <div class="card-img g2">📊<span class="chip green" data-th="รายงาน" data-en="Report">รายงาน</span></div>
+          <div class="card-body">
+            <h3 data-th="รายงานสรุปสถานะการส่งข้อมูลของโรงงานประจำเดือน เม.ย." data-en="Monthly factory data transmission report (Apr)">รายงานสรุปสถานะการส่งข้อมูลของโรงงานประจำเดือน เม.ย.</h3>
+            <p data-th="ภาพรวมอัตราการเชื่อมต่อ จำนวนสถานีที่ส่งข้อมูลได้ และกรณีข้อมูลขาดหาย" data-en="Overview of connectivity rate, reporting stations and missing-data cases.">ภาพรวมอัตราการเชื่อมต่อ จำนวนสถานีที่ส่งข้อมูลได้ และกรณีข้อมูลขาดหาย</p>
+            <div class="card-foot"><span data-th="30 เม.ย. 2569" data-en="30 Apr 2026">30 เม.ย. 2569</span><span class="read" data-th="อ่านต่อ →" data-en="Read →">อ่านต่อ →</span></div>
+          </div>
+        </article>
+
+        <article class="article-card" data-cat="system">
+          <div class="card-img g3">🛰️<span class="chip purple" data-th="ข่าวระบบ" data-en="System">ข่าวระบบ</span></div>
+          <div class="card-body">
+            <h3 data-th="เปิดใช้งานตัวกรองแผนที่ตามระดับการแจ้งเตือน" data-en="New map filter by alert level is now live">เปิดใช้งานตัวกรองแผนที่ตามระดับการแจ้งเตือน</h3>
+            <p data-th="ผู้ใช้งานสามารถกรองโรงงานตามสถานะ เกินเกณฑ์ หรือ ไม่ส่งข้อมูล ได้บนแผนที่แล้ว" data-en="Users can now filter factories by exceed or no-data status directly on the map.">ผู้ใช้งานสามารถกรองโรงงานตามสถานะ เกินเกณฑ์ หรือ ไม่ส่งข้อมูล ได้บนแผนที่แล้ว</p>
+            <div class="card-foot"><span data-th="24 เม.ย. 2569" data-en="24 Apr 2026">24 เม.ย. 2569</span><span class="read" data-th="อ่านต่อ →" data-en="Read →">อ่านต่อ →</span></div>
+          </div>
+        </article>
+
+        <article class="article-card" data-cat="article">
+          <div class="card-img g5">💧<span class="chip green" data-th="บทความ" data-en="Article">บทความ</span></div>
+          <div class="card-body">
+            <h3 data-th="WPMS คืออะไร ทำไมค่าน้ำทิ้งจึงสำคัญต่อชุมชนรอบนิคม" data-en="What is WPMS and why wastewater values matter to nearby communities">WPMS คืออะไร ทำไมค่าน้ำทิ้งจึงสำคัญต่อชุมชนรอบนิคม</h3>
+            <p data-th="อธิบายพารามิเตอร์ pH, COD, BOD, TSS และผลต่อคุณภาพแหล่งน้ำสาธารณะ" data-en="Explaining pH, COD, BOD, TSS parameters and their effect on public water sources.">อธิบายพารามิเตอร์ pH, COD, BOD, TSS และผลต่อคุณภาพแหล่งน้ำสาธารณะ</p>
+            <div class="card-foot"><span data-th="18 เม.ย. 2569" data-en="18 Apr 2026">18 เม.ย. 2569</span><span class="read" data-th="อ่านต่อ →" data-en="Read →">อ่านต่อ →</span></div>
+          </div>
+        </article>
+
+        <article class="article-card" data-cat="event">
+          <div class="card-img g6">🎓<span class="chip alert" data-th="กิจกรรม" data-en="Activity">กิจกรรม</span></div>
+          <div class="card-body">
+            <h3 data-th="อบรมการใช้งานระบบรายงานข้อมูลสำหรับผู้ประกอบการ รุ่นที่ 3" data-en="Reporting system training for operators — batch 3">อบรมการใช้งานระบบรายงานข้อมูลสำหรับผู้ประกอบการ รุ่นที่ 3</h3>
+            <p data-th="อบรมเชิงปฏิบัติการการส่งข้อมูล CEMS/WPMS/POMS และการแก้ปัญหาข้อมูลขาดหาย" data-en="Hands-on workshop on CEMS/WPMS/POMS submission and troubleshooting missing data.">อบรมเชิงปฏิบัติการการส่งข้อมูล CEMS/WPMS/POMS และการแก้ปัญหาข้อมูลขาดหาย</p>
+            <div class="card-foot"><span data-th="12 เม.ย. 2569" data-en="12 Apr 2026">12 เม.ย. 2569</span><span class="read" data-th="รายละเอียด →" data-en="Details →">รายละเอียด →</span></div>
+          </div>
+        </article>
+
+        <article class="article-card" data-cat="article">
+          <div class="card-img g7">🏭<span class="chip green" data-th="บทความ" data-en="Article">บทความ</span></div>
+          <div class="card-body">
+            <h3 data-th="POMS กับการติดตามสถานะโรงงานแบบต่อเนื่อง" data-en="POMS and continuous factory status tracking">POMS กับการติดตามสถานะโรงงานแบบต่อเนื่อง</h3>
+            <p data-th="ทำความเข้าใจการรวมข้อมูลจากระบบส่งข้อมูลกลางเพื่อดูภาพรวมย้อนหลัง" data-en="Understanding central data aggregation for historical overviews.">ทำความเข้าใจการรวมข้อมูลจากระบบส่งข้อมูลกลางเพื่อดูภาพรวมย้อนหลัง</p>
+            <div class="card-foot"><span data-th="6 เม.ย. 2569" data-en="6 Apr 2026">6 เม.ย. 2569</span><span class="read" data-th="อ่านต่อ →" data-en="Read →">อ่านต่อ →</span></div>
+          </div>
+        </article>
+
+        <article class="article-card" data-cat="announce">
+          <div class="card-img g1">📄<span class="chip purple" data-th="ประกาศ" data-en="Announce">ประกาศ</span></div>
+          <div class="card-body">
+            <h3 data-th="คู่มือการใช้งานเว็บไซต์สำหรับเจ้าหน้าที่และผู้ประกอบการ" data-en="Website user manual for officers and operators">คู่มือการใช้งานเว็บไซต์สำหรับเจ้าหน้าที่และผู้ประกอบการ</h3>
+            <p data-th="ดาวน์โหลดคู่มือฉบับปรับปรุง พร้อมขั้นตอนการเรียกดูข้อมูลย้อนหลังและส่งออกไฟล์" data-en="Download the updated manual with steps for retrieving historical data and exporting files.">ดาวน์โหลดคู่มือฉบับปรับปรุง พร้อมขั้นตอนการเรียกดูข้อมูลย้อนหลังและส่งออกไฟล์</p>
+            <div class="card-foot"><span data-th="1 เม.ย. 2569" data-en="1 Apr 2026">1 เม.ย. 2569</span><span class="read" data-th="อ่านต่อ →" data-en="Read →">อ่านต่อ →</span></div>
+          </div>
+        </article>
+
+        <article class="article-card" data-cat="system">
+          <div class="card-img g3">🔔<span class="chip purple" data-th="ข่าวระบบ" data-en="System">ข่าวระบบ</span></div>
+          <div class="card-body">
+            <h3 data-th="เพิ่มการแจ้งเตือนอัตโนมัติเมื่อโรงงานหยุดส่งข้อมูล" data-en="Automatic alerts added when a factory stops transmitting">เพิ่มการแจ้งเตือนอัตโนมัติเมื่อโรงงานหยุดส่งข้อมูล</h3>
+            <p data-th="ระบบจะแจ้งเตือนเจ้าหน้าที่เมื่อไม่มีข้อมูลใหม่เกินช่วงเวลาที่กำหนด" data-en="The system notifies officers when no new data arrives within the defined period.">ระบบจะแจ้งเตือนเจ้าหน้าที่เมื่อไม่มีข้อมูลใหม่เกินช่วงเวลาที่กำหนด</p>
+            <div class="card-foot"><span data-th="28 มี.ค. 2569" data-en="28 Mar 2026">28 มี.ค. 2569</span><span class="read" data-th="อ่านต่อ →" data-en="Read →">อ่านต่อ →</span></div>
+          </div>
+        </article>
+
+        <article class="article-card" data-cat="event">
+          <div class="card-img g2">🌱<span class="chip alert" data-th="กิจกรรม" data-en="Activity">กิจกรรม</span></div>
+          <div class="card-body">
+            <h3 data-th="เวทีรับฟังความคิดเห็นชุมชนรอบนิคมอุตสาหกรรม" data-en="Community public hearing around industrial estates">เวทีรับฟังความคิดเห็นชุมชนรอบนิคมอุตสาหกรรม</h3>
+            <p data-th="เปิดรับฟังข้อกังวลด้านสิ่งแวดล้อมและนำเสนอข้อมูลการเฝ้าระวังต่อชุมชน" data-en="Open forum on environmental concerns and monitoring data for the community.">เปิดรับฟังข้อกังวลด้านสิ่งแวดล้อมและนำเสนอข้อมูลการเฝ้าระวังต่อชุมชน</p>
+            <div class="card-foot"><span data-th="20 มี.ค. 2569" data-en="20 Mar 2026">20 มี.ค. 2569</span><span class="read" data-th="รายละเอียด →" data-en="Details →">รายละเอียด →</span></div>
+          </div>
+        </article>
+
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination">
+        <button class="nav-btn" data-th="‹ ก่อนหน้า" data-en="‹ Prev">‹ ก่อนหน้า</button>
+        <button class="active">1</button>
+        <button>2</button>
+        <button>3</button>
+        <button class="nav-btn" data-th="ถัดไป ›" data-en="Next ›">ถัดไป ›</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Events -->
+  <section class="events">
+    <div class="container">
+      <div class="section-head">
+        <h2 data-th="กิจกรรมที่กำลังจะมาถึง" data-en="Upcoming Activities">กิจกรรมที่กำลังจะมาถึง</h2>
+        <a class="see-all" href="#" data-th="ปฏิทินกิจกรรม →" data-en="Event calendar →">ปฏิทินกิจกรรม →</a>
+      </div>
+      <div class="events-layout">
+        <div class="event-list">
+          <div class="event-item">
+            <div class="event-date"><strong>15</strong><span data-th="พ.ค." data-en="May">พ.ค.</span></div>
+            <div class="event-info">
+              <h4 data-th="อบรมการใช้งานระบบรายงานข้อมูล รุ่นที่ 4" data-en="Reporting system training — batch 4">อบรมการใช้งานระบบรายงานข้อมูล รุ่นที่ 4</h4>
+              <div class="ev-meta"><span>🕐 09:00–16:00</span><span data-th="📍 ออนไลน์ (Zoom)" data-en="📍 Online (Zoom)">📍 ออนไลน์ (Zoom)</span></div>
+            </div>
+            <span class="chip alert event-tag" data-th="อบรม" data-en="Training">อบรม</span>
+          </div>
+          <div class="event-item">
+            <div class="event-date"><strong>22</strong><span data-th="พ.ค." data-en="May">พ.ค.</span></div>
+            <div class="event-info">
+              <h4 data-th="ตรวจประเมินสถานีตรวจวัด CEMS ภาคสนาม" data-en="On-site CEMS station assessment">ตรวจประเมินสถานีตรวจวัด CEMS ภาคสนาม</h4>
+              <div class="ev-meta"><span>🕐 10:00</span><span data-th="📍 นิคมอุตสาหกรรมมาบตาพุด" data-en="📍 Map Ta Phut Industrial Estate">📍 นิคมอุตสาหกรรมมาบตาพุด</span></div>
+            </div>
+            <span class="chip green event-tag" data-th="ลงพื้นที่" data-en="Field">ลงพื้นที่</span>
+          </div>
+          <div class="event-item">
+            <div class="event-date"><strong>03</strong><span data-th="มิ.ย." data-en="Jun">มิ.ย.</span></div>
+            <div class="event-info">
+              <h4 data-th="เวทีรับฟังความคิดเห็นชุมชน ครั้งที่ 2" data-en="Community public hearing #2">เวทีรับฟังความคิดเห็นชุมชน ครั้งที่ 2</h4>
+              <div class="ev-meta"><span>🕐 13:30</span><span data-th="📍 ศาลากลางจังหวัด" data-en="📍 Provincial Hall">📍 ศาลากลางจังหวัด</span></div>
+            </div>
+            <span class="chip purple event-tag" data-th="ประชุม" data-en="Meeting">ประชุม</span>
+          </div>
+        </div>
+        <div class="side-card">
+          <h3 data-th="รับข่าวสารทางอีเมล" data-en="Get news by email">รับข่าวสารทางอีเมล</h3>
+          <p data-th="สมัครรับประกาศระบบ รายงานประจำเดือน และกำหนดการกิจกรรม ส่งตรงถึงอีเมลของคุณ" data-en="Subscribe to system announcements, monthly reports and activity schedules — straight to your inbox.">สมัครรับประกาศระบบ รายงานประจำเดือน และกำหนดการกิจกรรม ส่งตรงถึงอีเมลของคุณ</p>
+          <a class="btn btn-primary" href="#" data-th="สมัครรับข่าวสาร" data-en="Subscribe">สมัครรับข่าวสาร</a>
+          <div class="tag-cloud">
+            <a href="#">#CEMS</a>
+            <a href="#">#WPMS</a>
+            <a href="#">#POMS</a>
+            <a href="#" data-th="#เฝ้าระวัง" data-en="#Monitoring">#เฝ้าระวัง</a>
+            <a href="#" data-th="#นิคมอุตสาหกรรม" data-en="#IndustrialEstate">#นิคมอุตสาหกรรม</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <h4 data-th="ศูนย์เฝ้าระวังและควบคุมคุณภาพสิ่งแวดล้อม" data-en="Environment Monitoring and Control Center">ศูนย์เฝ้าระวังและควบคุมคุณภาพสิ่งแวดล้อม</h4>
+          <p data-th="เว็บไซต์แสดงผลข้อมูล CEMS, WPMS และ POMS พร้อมแผนที่โรงงานและข้อมูลย้อนหลังจากฐานข้อมูลกลาง" data-en="Portal for CEMS, WPMS and POMS data with factory map and historical records from the central database.">เว็บไซต์แสดงผลข้อมูล CEMS, WPMS และ POMS พร้อมแผนที่โรงงานและข้อมูลย้อนหลังจากฐานข้อมูลกลาง</p>
+        </div>
+        <div>
+          <h4 data-th="เมนูหลัก" data-en="Main Menu">เมนูหลัก</h4>
+          <a href="EMCC Portal.html#map" data-th="แผนที่โรงงาน" data-en="Factory Map">แผนที่โรงงาน</a>
+          <a href="EMCC Portal.html#news" data-th="ข่าวประกาศ" data-en="Announcements">ข่าวประกาศ</a>
+          <a href="EMCC Portal.html#download" data-th="ดาวน์โหลด" data-en="Downloads">ดาวน์โหลด</a>
+          <a href="ข่าวสารและกิจกรรม.html" data-th="ข่าวสารและกิจกรรม" data-en="News &amp; Activities">ข่าวสารและกิจกรรม</a>
+        </div>
+        <div>
+          <h4 data-th="ติดต่อ" data-en="Contact">ติดต่อ</h4>
+          <p>📞 Call Center : 02 207 2700</p>
+          <p>✉ info@example.go.th</p>
+          <p data-th="เปิดบริการ จ–ศ 08:30–16:30" data-en="Open Mon–Fri 08:30–16:30">เปิดบริการ จ–ศ 08:30–16:30</p>
+        </div>
+      </div>
+      <div class="footer-bottom" data-th="© 2026 EMCC · Environment Monitoring and Control Center" data-en="© 2026 EMCC · Environment Monitoring and Control Center">© 2026 EMCC · Environment Monitoring and Control Center</div>
+    </div>
+  </footer>
+
+  <script>
+    function setLang(lang, btn) {
+      document.documentElement.lang = lang;
+      document.querySelectorAll('[data-th][data-en]').forEach(el => { el.textContent = el.dataset[lang]; });
+      document.querySelectorAll('.lang button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    // Drawer
+    const drawer = document.getElementById('drawer');
+    const drawerBackdrop = document.getElementById('drawerBackdrop');
+    const mobileToggle = document.getElementById('mobileToggle');
+    const drawerClose = document.getElementById('drawerClose');
+    function openDrawer(){ drawer.classList.add('open'); drawerBackdrop.classList.add('open'); mobileToggle.classList.add('open'); document.body.style.overflow='hidden'; }
+    function closeDrawer(){ drawer.classList.remove('open'); drawerBackdrop.classList.remove('open'); mobileToggle.classList.remove('open'); document.body.style.overflow=''; }
+    mobileToggle.addEventListener('click', () => drawer.classList.contains('open') ? closeDrawer() : openDrawer());
+    drawerBackdrop.addEventListener('click', closeDrawer);
+    drawerClose.addEventListener('click', closeDrawer);
+
+    // Category filter
+    const catTabs = document.getElementById('catTabs');
+    const cards = document.querySelectorAll('#articleGrid .article-card');
+    catTabs.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      catTabs.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const cat = btn.dataset.cat;
+      cards.forEach(c => {
+        c.classList.toggle('hidden', cat !== 'all' && c.dataset.cat !== cat);
+      });
+    });
+  </script>
+</body>
+</html>

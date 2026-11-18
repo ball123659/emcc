@@ -32,10 +32,11 @@ database.default.database = webemcc
 database.default.username = ...
 database.default.password = ...
 emcc.virusScanner = defender
+# TRUSTED_PROXIES = '10.0.0.5'   # อยู่หลัง reverse proxy / load balancer ที่ทำ HTTPS ให้ (คั่นด้วย , รองรับ CIDR)
 ```
 โปรดักชัน: cookie เป็น Secure + HttpOnly อัตโนมัติ, หน้า error ไม่แสดงรายละเอียดระบบ
 
-**อยู่หลัง reverse proxy / load balancer ต้องตั้ง `TRUSTED_PROXIES`** ไม่งั้นผู้ใช้ทุกคนจะมี IP เดียวกัน
+**อยู่หลัง reverse proxy / load balancer ต้องตั้ง `TRUSTED_PROXIES`** ไม่งั้นระบบจะ redirect ไป https วนไม่จบ และผู้ใช้ทุกคนจะมี IP เดียวกัน
 (จำกัดการล็อกอิน 10 ครั้ง/นาที และดาวน์โหลด 60 ครั้ง/นาที รวมกันทั้งองค์กร, ยอดดาวน์โหลดเพี้ยน, บันทึก IP ผิด)
 
 ฐานข้อมูล (เลือกอย่างใดอย่างหนึ่ง):
