@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>รายละเอียดข่าว — EMCC</title>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+
+    :root {
+      --purple: #704a9f; --purple-2: #8a63b8; --purple-dark: #4e3272; --purple-soft: #f0ebf8; --purple-tint: #f8f5fc;
+      --green: #0e975f; --green-2: #2fb37e; --green-dark: #0a6f46; --green-soft: #e6f6ee;
+      --orange: #e86e2f; --alert: #d94848; --watch: #f5bd35; --good: #18a567; --offline:#8b97a8;
+      --text: #1b2533; --muted: #5d6b7e; --line: #e4e8ef; --bg: #f6f7fb; --white: #ffffff;
+      --shadow-sm: 0 6px 18px rgba(74, 31, 107, 0.08); --shadow: 0 14px 36px rgba(74, 31, 107, 0.13); --shadow-lg: 0 24px 60px rgba(74, 31, 107, 0.18);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin:0; font-family:"Prompt",sans-serif; color:var(--text); background:var(--bg); -webkit-font-smoothing:antialiased; }
+    a { text-decoration:none; color:inherit; }
+    a:hover { color: var(--purple); }
+    img { max-width:100%; display:block; }
+    .container { width:min(1220px, calc(100% - 32px)); margin:0 auto; }
+    .topbar { background:linear-gradient(90deg,var(--purple-dark) 0%,var(--purple) 60%,var(--green-dark) 100%); color:#f4f0ff; font-size:13px; }
+    .topbar-inner { min-height:40px; display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; }
+    .top-left,.top-right { display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+    .lang { display:flex; align-items:center; gap:8px; }
+    .lang button { border:1px solid rgba(255,255,255,.4); background:transparent; color:#fff; border-radius:999px; padding:4px 11px; font-family:inherit; cursor:pointer; font-size:12px; transition:all .2s; }
+    .lang button.active { background:#fff; color:var(--purple-dark); }
+    .header { position:sticky; top:0; z-index:1000; background:rgba(255,255,255,.97); backdrop-filter:blur(10px); box-shadow:0 4px 18px rgba(74,31,107,.08); border-bottom:1px solid rgba(74,31,107,.06); }
+    .header-inner { min-height:78px; display:flex; align-items:center; justify-content:space-between; gap:20px; }
+    .brand { display:flex; align-items:center; gap:14px; min-width:0; flex:1; }
+    .logo { width:56px; height:56px; border-radius:14px; background:#fff; padding:5px; display:grid; place-items:center; box-shadow:0 8px 18px rgba(112,74,159,.20); border:1px solid var(--line); flex-shrink:0; overflow:hidden; }
+    .logo img { width:100%; height:100%; object-fit:contain; display:block; }
+    .brand-text { min-width:0; }
+    .brand strong { display:block; color:var(--purple-dark); font-size:16px; line-height:1.25; }
+    .brand span { display:block; color:var(--muted); font-size:12px; margin-top:2px; }
+    .nav { display:flex; align-items:center; gap:2px; }
+    .nav a { padding:10px 13px; border-radius:10px; font-size:14px; font-weight:500; color:#2b3a4f; transition:all .18s; }
+    .nav a:hover, .nav a.active { background:var(--purple-soft); color:var(--purple); }
+    .login-btn { background:linear-gradient(135deg,var(--purple),var(--green)) !important; color:#fff !important; border-radius:999px !important; padding:10px 18px !important; margin-left:6px; box-shadow:0 8px 18px rgba(107,44,145,.22); }
+    .login-btn:hover { color:#fff !important; }
+    .mobile-toggle { display:none; width:44px; height:44px; border:1px solid var(--line); background:#fff; border-radius:12px; cursor:pointer; align-items:center; justify-content:center; flex-direction:column; gap:4px; }
+    .mobile-toggle span { width:20px; height:2px; background:var(--purple-dark); border-radius:2px; transition:transform .25s,opacity .25s; }
+    .mobile-toggle.open span:nth-child(1){ transform:translateY(6px) rotate(45deg); }
+    .mobile-toggle.open span:nth-child(2){ opacity:0; }
+    .mobile-toggle.open span:nth-child(3){ transform:translateY(-6px) rotate(-45deg); }
+    .drawer-backdrop { position:fixed; inset:0; background:rgba(20,10,35,.5); backdrop-filter:blur(3px); z-index:1100; opacity:0; pointer-events:none; transition:opacity .25s; }
+    .drawer-backdrop.open { opacity:1; pointer-events:auto; }
+    .drawer { position:fixed; top:0; right:0; width:min(340px,86vw); height:100vh; background:#fff; z-index:1101; transform:translateX(100%); transition:transform .3s ease; box-shadow:-20px 0 40px rgba(0,0,0,.2); display:flex; flex-direction:column; }
+    .drawer.open { transform:translateX(0); }
+    .drawer-head { padding:18px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); }
+    .drawer-head strong { color:var(--purple-dark); font-size:15px; }
+    .drawer-close { width:36px; height:36px; border-radius:10px; border:1px solid var(--line); background:#fff; cursor:pointer; font-size:18px; color:var(--purple-dark); }
+    .drawer-nav { display:flex; flex-direction:column; padding:12px; gap:4px; }
+    .drawer-nav a { padding:14px 16px; border-radius:12px; font-size:15px; font-weight:500; color:#2b3a4f; }
+    .drawer-nav a:hover, .drawer-nav a.active { background:var(--purple-soft); color:var(--purple); }
+    .drawer-nav a.login-btn { margin-top:8px; background:linear-gradient(135deg,var(--purple),var(--green)) !important; color:#fff !important; text-align:center; }
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; border:none; border-radius:999px; padding:12px 22px; font-family:inherit; font-weight:600; cursor:pointer; font-size:14px; transition:all .2s; }
+    .btn-primary { background:linear-gradient(135deg,var(--purple),var(--green)); color:#fff; }
+    .btn-primary:hover { transform:translateY(-1px); box-shadow:0 12px 24px rgba(107,44,145,.24); color:#fff; }
+    .btn-outline { background:#fff; color:var(--purple); border:1px solid var(--line); }
+    .btn-outline:hover { border-color:var(--purple); }
+    .chip { display:inline-flex; align-items:center; gap:6px; padding:5px 13px; border-radius:999px; font-size:12px; font-weight:600; }
+    .chip.green { background:var(--green-soft); color:var(--green-dark); }
+    .chip.purple { background:var(--purple-soft); color:var(--purple); }
+    .chip.watch { background:rgba(245,189,53,.18); color:#986f00; }
+    .chip.alert { background:rgba(217,72,72,.12); color:var(--alert); }
+    .page-banner { position:relative; overflow:hidden; color:#fff; background:linear-gradient(115deg,#3a1a5e 0%,#6b2c91 48%,#2aa46a 100%); }
+    .page-banner::before { content:""; position:absolute; inset:0; background-image:linear-gradient(rgba(255,255,255,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.08) 1px,transparent 1px); background-size:46px 46px; opacity:.18; }
+    .page-banner::after { content:""; position:absolute; right:-140px; bottom:-160px; width:420px; height:420px; border-radius:50%; background:rgba(255,255,255,.08); }
+    .banner-inner { position:relative; z-index:1; padding:48px 0 56px; }
+    .breadcrumb { font-size:13px; color:#e6dcff; margin-bottom:14px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .breadcrumb a:hover { color:#fff; }
+    .page-banner h1 { margin:0; font-size:clamp(28px,4vw,44px); font-weight:600; letter-spacing:-.02em; line-height:1.2; }
+    .page-banner p { margin:14px 0 0; max-width:680px; color:#f1ecff; line-height:1.7; font-size:16px; }
+    .footer { background:linear-gradient(95deg,var(--purple-dark) 0%,#2c1647 50%,#0f3a25 100%); color:#eee9ff; padding:42px 0 28px; }
+    .footer-grid { display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:26px; }
+    .footer h4 { margin:0 0 12px; color:#fff; font-size:15px; }
+    .footer p, .footer a { color:#d9d1f2; font-size:13px; line-height:1.75; margin:0; display:block; }
+    .footer a:hover { color:#fff; }
+    .footer-bottom { border-top:1px solid rgba(255,255,255,.12); margin-top:28px; padding-top:18px; color:#bcb0d8; font-size:12px; text-align:center; }
+    .hidden { display:none !important; }
+    @media (max-width:1060px) { .nav { display:none; } .mobile-toggle { display:flex; } .footer-grid { grid-template-columns:1fr; } }
+    @media (max-width:720px) {
+      .topbar-inner { padding:8px 0; font-size:12px; }
+      .top-left span:nth-child(2){ display:none; }
+      .header-inner { min-height:68px; }
+      .brand { gap:10px; } .logo { width:46px; height:46px; border-radius:13px; }
+      .brand strong { font-size:14px; } .brand span { font-size:11px; }
+      .banner-inner { padding:36px 0 42px; }
+    }
+    @media (max-width:420px) { .top-left span:nth-child(3){ display:none; } }
+
+
+    .article-hero { position:relative; height:clamp(300px,46vh,460px); display:flex; align-items:flex-end; overflow:hidden; background:linear-gradient(135deg,#6b2c91,#2aa46a); }
+    .article-hero::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(30,15,46,.05) 0%,rgba(30,15,46,.72) 100%); }
+    .article-hero .container { position:relative; z-index:1; padding-bottom:34px; color:#fff; }
+    .article-hero .breadcrumb { color:#efe7ff; }
+    .article-hero .chip { margin-bottom:16px; background:rgba(255,255,255,.92); color:var(--purple); }
+    .article-hero h1 { margin:0; font-size:clamp(24px,3.4vw,40px); font-weight:600; line-height:1.28; max-width:900px; letter-spacing:-.02em; }
+    .article-hero .meta { display:flex; gap:20px; margin-top:16px; font-size:13.5px; color:#efe7ff; flex-wrap:wrap; }
+    .article-hero .meta span { display:inline-flex; align-items:center; gap:7px; }
+
+    .article-wrap { padding:40px 0 20px; }
+    .article-layout { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:38px; align-items:start; }
+    .article-body { min-width:0; }
+    .lead { font-size:18px; line-height:1.8; color:var(--text); font-weight:500; margin:0 0 26px; padding-left:18px; border-left:4px solid var(--green); }
+    .article-body h2 { color:var(--purple-dark); font-size:22px; margin:34px 0 12px; font-weight:600; }
+    .article-body h3 { color:var(--purple-dark); font-size:18px; margin:26px 0 10px; font-weight:600; }
+    .article-body p { color:#33414f; line-height:1.9; font-size:15.5px; margin:0 0 18px; }
+    .article-body ul { color:#33414f; line-height:1.9; font-size:15.5px; padding-left:22px; margin:0 0 18px; }
+    .article-body li { margin-bottom:8px; }
+    .figure { margin:26px 0; border-radius:20px; overflow:hidden; border:1px solid var(--line); box-shadow:var(--shadow-sm); }
+    .figure .ph { height:300px; display:grid; place-items:center; font-size:64px; background:linear-gradient(135deg,#f3ecfa,#e6f6ee); color:var(--purple); }
+    .figure figcaption { padding:12px 16px; font-size:12.5px; color:var(--muted); background:#fff; }
+    .callout { background:linear-gradient(135deg,var(--purple-tint),var(--green-soft)); border:1px solid var(--line); border-radius:18px; padding:20px 22px; margin:24px 0; }
+    .callout strong { color:var(--purple-dark); display:block; margin-bottom:6px; }
+    .callout p { margin:0; font-size:14.5px; color:#33414f; }
+    .param-table { width:100%; border-collapse:collapse; margin:22px 0; font-size:14.5px; }
+    .param-table th, .param-table td { text-align:left; padding:12px 14px; border-bottom:1px solid var(--line); }
+    .param-table th { background:var(--purple-tint); color:var(--purple-dark); font-weight:600; }
+    .param-table td:last-child, .param-table th:last-child { text-align:right; }
+
+    .share-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:30px 0; padding:18px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+    .share-row .lbl { color:var(--muted); font-size:14px; margin-right:4px; }
+    .share-btn { width:40px; height:40px; border-radius:12px; border:1px solid var(--line); background:#fff; display:grid; place-items:center; cursor:pointer; font-size:16px; transition:all .18s; color:var(--purple-dark); }
+    .share-btn:hover { border-color:var(--purple); background:var(--purple-tint); }
+    .tag-cloud { display:flex; flex-wrap:wrap; gap:8px; margin:22px 0; }
+    .tag-cloud a { padding:7px 14px; border-radius:999px; background:#fff; border:1px solid var(--line); font-size:13px; color:#37506b; }
+    .tag-cloud a:hover { border-color:var(--purple); color:var(--purple); }
+
+    .aside-card { background:#fff; border:1px solid var(--line); border-radius:20px; padding:20px 22px; box-shadow:var(--shadow-sm); margin-bottom:20px; position:sticky; top:98px; }
+    .aside-card h3 { margin:0 0 16px; color:var(--purple-dark); font-size:17px; }
+    .mini-list { display:grid; gap:14px; }
+    .mini-item { display:flex; gap:12px; align-items:flex-start; }
+    .mini-thumb { width:56px; height:56px; border-radius:12px; flex-shrink:0; display:grid; place-items:center; font-size:22px; }
+    .mini-item h4 { margin:0 0 4px; font-size:13.5px; color:var(--text); line-height:1.4; font-weight:600; }
+    .mini-item span { color:var(--muted); font-size:12px; }
+    .g1 { background:linear-gradient(135deg,#6b2c91,#2aa46a); color:#fff; }
+    .g2 { background:linear-gradient(135deg,#137a47,#4ac084); color:#fff; }
+    .g3 { background:linear-gradient(135deg,#8a3fb8,#6b2c91); color:#fff; }
+    .g4 { background:linear-gradient(135deg,#f3ecfa,#e8f8ef); color:var(--purple); }
+
+    /* related */
+    .related { background:#fff; border-top:1px solid var(--line); padding:52px 0; margin-top:30px; }
+    .section-head { display:flex; justify-content:space-between; align-items:end; gap:16px; margin-bottom:22px; flex-wrap:wrap; }
+    .section-head h2 { margin:0; color:var(--purple-dark); font-size:clamp(20px,2.4vw,26px); font-weight:600; letter-spacing:-.02em; }
+    .section-head .see-all { color:var(--purple); font-weight:600; font-size:14px; }
+    .related-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:22px; }
+    .rel-card { background:#fff; border:1px solid var(--line); border-radius:18px; overflow:hidden; box-shadow:var(--shadow-sm); transition:transform .2s,box-shadow .2s; }
+    .rel-card:hover { transform:translateY(-4px); box-shadow:var(--shadow); }
+    .rel-img { height:150px; display:grid; place-items:center; font-size:42px; }
+    .rel-body { padding:18px; }
+    .rel-body span.date { color:var(--muted); font-size:12px; }
+    .rel-body h3 { margin:6px 0 0; color:var(--purple-dark); font-size:16px; line-height:1.4; font-weight:600; }
+
+    @media (max-width:960px){ .article-layout { grid-template-columns:1fr; } .aside-card { position:static; } .related-grid { grid-template-columns:repeat(2,1fr); } }
+    @media (max-width:720px){ .related-grid { grid-template-columns:1fr; } .figure .ph { height:210px; } }
+
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="container topbar-inner">
+      <div class="top-left">
+        <span data-th="📞 Call Center : 02 207 2700" data-en="📞 Call Center : 02 207 2700">📞 Call Center : 02 207 2700</span>
+        <span data-th="💬 Live Chat" data-en="💬 Live Chat">💬 Live Chat</span>
+        <span data-th="⚠ แจ้งเหตุ/ร้องเรียน" data-en="⚠ Complaint Center">⚠ แจ้งเหตุ/ร้องเรียน</span>
+      </div>
+      <div class="top-right">
+        <div class="lang">
+          <span data-th="ภาษา" data-en="Language">ภาษา</span>
+          <button class="active" onclick="setLang('th', this)">TH</button>
+          <button onclick="setLang('en', this)">EN</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <header class="header">
+    <div class="container header-inner">
+      <a class="brand" href="EMCC Portal.html">
+        <div class="logo"><img src="ieat-logo.jpg" alt="I-EA-T" /></div>
+        <div class="brand-text">
+          <strong data-th="ศูนย์เฝ้าระวังและควบคุมคุณภาพสิ่งแวดล้อม" data-en="Environment Monitoring and Control Center">ศูนย์เฝ้าระวังและควบคุมคุณภาพสิ่งแวดล้อม</strong>
+          <span data-th="Industrial Emission &amp; Wastewater Monitoring" data-en="Industrial Emission &amp; Wastewater Monitoring">Industrial Emission &amp; Wastewater Monitoring</span>
+        </div>
+      </a>
+      <nav class="nav">
+      <a href="EMCC Portal.html" data-th="หน้าหลัก" data-en="Home">หน้าหลัก</a>
+      <a href="EMCC Portal.html#map" data-th="แผนที่โรงงาน" data-en="Factory Map">แผนที่โรงงาน</a>
+      <a href="EMCC Portal.html#news" data-th="ข่าวประกาศ" data-en="Announcements">ข่าวประกาศ</a>
+      <a href="ดาวน์โหลด.html" data-th="ดาวน์โหลด" data-en="Downloads">ดาวน์โหลด</a>
+      <a class="active" href="ข่าวสารและกิจกรรม.html" data-th="ข่าวสาร" data-en="News">ข่าวสาร</a>
+      <a href="เกี่ยวกับ.html" data-th="เกี่ยวกับ" data-en="About">เกี่ยวกับ</a>
+      <a class="login-btn" href="#" data-th="เข้าสู่ระบบ" data-en="Login">เข้าสู่ระบบ</a>
+      </nav>
+      <button class="mobile-toggle" id="mobileToggle" aria-label="Menu"><span></span><span></span><span></span></button>
+    </div>
+  </header>
+  <div class="drawer-backdrop" id="drawerBackdrop"></div>
+  <aside class="drawer" id="drawer">
+    <div class="drawer-head">
+      <strong data-th="เมนู" data-en="Menu">เมนู</strong>
+      <button class="drawer-close" id="drawerClose" aria-label="Close">✕</button>
+    </div>
+    <nav class="drawer-nav">
+      <a href="EMCC Portal.html" data-th="หน้าหลัก" data-en="Home">หน้าหลัก</a>
+      <a href="EMCC Portal.html#map" data-th="แผนที่โรงงาน" data-en="Factory Map">แผนที่โรงงาน</a>
+      <a href="EMCC Portal.html#news" data-th="ข่าวประกาศ" data-en="Announcements">ข่าวประกาศ</a>
+      <a href="ดาวน์โหลด.html" data-th="ดาวน์โหลด" data-en="Downloads">ดาวน์โหลด</a>
+      <a class="active" href="ข่าวสารและกิจกรรม.html" data-th="ข่าวสาร" data-en="News">ข่าวสาร</a>
+      <a href="เกี่ยวกับ.html" data-th="เกี่ยวกับ" data-en="About">เกี่ยวกับ</a>
+      <a class="login-btn" href="#" data-th="เข้าสู่ระบบ" data-en="Login">เข้าสู่ระบบ</a>
+    </nav>
+  </aside>
+
+  <section class="article-hero">
+    <div class="container">
+      <div class="breadcrumb">
+        <a href="EMCC Portal.html" data-th="หน้าหลัก" data-en="Home">หน้าหลัก</a><span>›</span>
+        <a href="ข่าวสารและกิจกรรม.html" data-th="ข่าวสาร" data-en="News">ข่าวสาร</a><span>›</span>
+        <span data-th="รายละเอียดข่าว" data-en="Article">รายละเอียดข่าว</span>
+      </div>
+      <span class="chip" data-th="บทความ" data-en="Article">บทความ</span>
+      <h1 data-th="เข้าใจค่าการระบายมลพิษจากปล่อง CEMS อ่านอย่างไรให้ถูกต้อง" data-en="Understanding CEMS stack emission values — how to read them correctly">เข้าใจค่าการระบายมลพิษจากปล่อง CEMS อ่านอย่างไรให้ถูกต้อง</h1>
+      <div class="meta">
+        <span>📅 <span data-th="5 พฤษภาคม 2569" data-en="5 May 2026">5 พฤษภาคม 2569</span></span>
+        <span>👁 <span data-th="1,204 ครั้ง" data-en="1,204 views">1,204 ครั้ง</span></span>
+        <span data-th="✍ ฝ่ายเฝ้าระวังคุณภาพสิ่งแวดล้อม" data-en="✍ Environmental Monitoring Division">✍ ฝ่ายเฝ้าระวังคุณภาพสิ่งแวดล้อม</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="article-wrap">
+    <div class="container article-layout">
+      <article class="article-body">
+        <p class="lead" data-th="ค่าที่แสดงบนแผนที่ของศูนย์ฯ มาจากระบบตรวจวัดการระบายอากาศจากปล่องแบบต่อเนื่อง (CEMS) บทความนี้อธิบายว่าตัวเลขแต่ละตัวหมายถึงอะไร และควรตีความสถานะอย่างไร" data-en="The values shown on the center's map come from Continuous Emission Monitoring Systems (CEMS). This article explains what each number means and how to interpret the status.">ค่าที่แสดงบนแผนที่ของศูนย์ฯ มาจากระบบตรวจวัดการระบายอากาศจากปล่องแบบต่อเนื่อง (CEMS) บทความนี้อธิบายว่าตัวเลขแต่ละตัวหมายถึงอะไร และควรตีความสถานะอย่างไร</p>
+
+        <p data-th="ระบบ CEMS (Continuous Emission Monitoring System) คือระบบที่ติดตั้งบริเวณปล่องระบายอากาศของโรงงาน เพื่อวัดค่ามลพิษแบบต่อเนื่องตลอด 24 ชั่วโมง แล้วส่งข้อมูลเข้าสู่ฐานข้อมูลกลางของหน่วยงาน ทำให้เจ้าหน้าที่และประชาชนสามารถติดตามสถานการณ์ได้แบบใกล้เคียงเรียลไทม์" data-en="A CEMS is installed at a factory's exhaust stack to measure pollutants continuously, 24 hours a day, and transmit the data to the central database so officers and the public can monitor the situation in near real-time.">ระบบ CEMS (Continuous Emission Monitoring System) คือระบบที่ติดตั้งบริเวณปล่องระบายอากาศของโรงงาน เพื่อวัดค่ามลพิษแบบต่อเนื่องตลอด 24 ชั่วโมง แล้วส่งข้อมูลเข้าสู่ฐานข้อมูลกลางของหน่วยงาน ทำให้เจ้าหน้าที่และประชาชนสามารถติดตามสถานการณ์ได้แบบใกล้เคียงเรียลไทม์</p>
+
+        <figure class="figure">
+          <div class="ph">🏭</div>
+          <figcaption data-th="ตัวอย่างการติดตั้งอุปกรณ์ตรวจวัด CEMS บริเวณปล่องระบายอากาศของโรงงาน" data-en="Example of CEMS sensors installed at a factory exhaust stack.">ตัวอย่างการติดตั้งอุปกรณ์ตรวจวัด CEMS บริเวณปล่องระบายอากาศของโรงงาน</figcaption>
+        </figure>
+
+        <h2 data-th="พารามิเตอร์หลักที่ควรรู้จัก" data-en="Key parameters to know">พารามิเตอร์หลักที่ควรรู้จัก</h2>
+        <p data-th="ค่าที่พบบ่อยบนหน้าแผนที่และหน้ารายละเอียดโรงงาน มีดังนี้" data-en="The values most commonly seen on the map and factory detail panel are as follows:">ค่าที่พบบ่อยบนหน้าแผนที่และหน้ารายละเอียดโรงงาน มีดังนี้</p>
+        <table class="param-table">
+          <thead><tr>
+            <th data-th="พารามิเตอร์" data-en="Parameter">พารามิเตอร์</th>
+            <th data-th="ความหมาย" data-en="Meaning">ความหมาย</th>
+            <th data-th="หน่วย" data-en="Unit">หน่วย</th>
+          </tr></thead>
+          <tbody>
+            <tr><td>SO₂</td><td data-th="ก๊าซซัลเฟอร์ไดออกไซด์" data-en="Sulfur dioxide">ก๊าซซัลเฟอร์ไดออกไซด์</td><td>ppm</td></tr>
+            <tr><td>NOx</td><td data-th="ก๊าซออกไซด์ของไนโตรเจน" data-en="Nitrogen oxides">ก๊าซออกไซด์ของไนโตรเจน</td><td>ppm</td></tr>
+            <tr><td>O₂</td><td data-th="ปริมาณออกซิเจนในไอเสีย" data-en="Oxygen in flue gas">ปริมาณออกซิเจนในไอเสีย</td><td>%</td></tr>
+            <tr><td>Dust</td><td data-th="ฝุ่นละอองรวม" data-en="Total particulate">ฝุ่นละอองรวม</td><td>mg/m³</td></tr>
+            <tr><td>Flow</td><td data-th="อัตราการไหลของไอเสีย" data-en="Flue gas flow rate">อัตราการไหลของไอเสีย</td><td>m³/h</td></tr>
+          </tbody>
+        </table>
+
+        <h2 data-th="การตีความสถานะ ปกติ – เฝ้าระวัง – เกินเกณฑ์" data-en="Interpreting status: normal, watch, exceed">การตีความสถานะ ปกติ – เฝ้าระวัง – เกินเกณฑ์</h2>
+        <p data-th="ระบบจะเปรียบเทียบค่าที่วัดได้กับค่ามาตรฐานที่กฎหมายกำหนด แล้วแสดงสถานะด้วยสี เพื่อให้เข้าใจง่าย" data-en="The system compares measured values against legal standards and displays a color-coded status for easy understanding.">ระบบจะเปรียบเทียบค่าที่วัดได้กับค่ามาตรฐานที่กฎหมายกำหนด แล้วแสดงสถานะด้วยสี เพื่อให้เข้าใจง่าย</p>
+        <ul>
+          <li data-th="ปกติ (เขียว): ค่าอยู่ในเกณฑ์ที่กำหนด" data-en="Normal (green): value within criteria">ปกติ (เขียว): ค่าอยู่ในเกณฑ์ที่กำหนด</li>
+          <li data-th="เฝ้าระวัง (เหลือง): ค่าเข้าใกล้เกณฑ์ หรือมีแนวโน้มผิดปกติ" data-en="Watch (yellow): value near criteria or trending abnormally">เฝ้าระวัง (เหลือง): ค่าเข้าใกล้เกณฑ์ หรือมีแนวโน้มผิดปกติ</li>
+          <li data-th="เกินเกณฑ์ (แดง): ค่าตรวจวัดเกินค่ามาตรฐาน" data-en="Exceed (red): value exceeds the standard">เกินเกณฑ์ (แดง): ค่าตรวจวัดเกินค่ามาตรฐาน</li>
+          <li data-th="ไม่ส่งข้อมูล (เทา): ไม่มีข้อมูลใหม่ในช่วงเวลาที่กำหนด" data-en="No data (gray): no recent data within the defined period">ไม่ส่งข้อมูล (เทา): ไม่มีข้อมูลใหม่ในช่วงเวลาที่กำหนด</li>
+        </ul>
+
+        <div class="callout">
+          <strong data-th="ข้อควรทราบ" data-en="Good to know">ข้อควรทราบ</strong>
+          <p data-th="ค่าที่แสดงเป็นค่าการระบาย ณ จุดตรวจวัด ไม่ใช่ค่าคุณภาพอากาศ (AQI) ของพื้นที่โดยรอบ การเกินเกณฑ์ชั่วขณะไม่ได้หมายความว่าคุณภาพอากาศในชุมชนจะเกินมาตรฐานเสมอไป" data-en="The values are emission readings at the measurement point, not the area's air quality index (AQI). A momentary exceedance does not always mean community air quality exceeds standards.">ค่าที่แสดงเป็นค่าการระบาย ณ จุดตรวจวัด ไม่ใช่ค่าคุณภาพอากาศ (AQI) ของพื้นที่โดยรอบ การเกินเกณฑ์ชั่วขณะไม่ได้หมายความว่าคุณภาพอากาศในชุมชนจะเกินมาตรฐานเสมอไป</p>
+        </div>
+
+        <h2 data-th="ระบบทำอะไรเมื่อพบค่าเกินเกณฑ์" data-en="What the system does on exceedance">ระบบทำอะไรเมื่อพบค่าเกินเกณฑ์</h2>
+        <p data-th="เมื่อค่าตรวจวัดเกินเกณฑ์ ระบบจะแจ้งเตือนเจ้าหน้าที่โดยอัตโนมัติ และบันทึกเหตุการณ์ไว้ในประวัติ เพื่อให้สามารถตรวจสอบย้อนหลังและติดตามการแก้ไขของโรงงานได้" data-en="When a value exceeds the threshold, the system automatically alerts officers and logs the event in history so it can be audited and the factory's corrective action tracked.">เมื่อค่าตรวจวัดเกินเกณฑ์ ระบบจะแจ้งเตือนเจ้าหน้าที่โดยอัตโนมัติ และบันทึกเหตุการณ์ไว้ในประวัติ เพื่อให้สามารถตรวจสอบย้อนหลังและติดตามการแก้ไขของโรงงานได้</p>
+
+        <div class="share-row">
+          <span class="lbl" data-th="แชร์บทความ:" data-en="Share:">แชร์บทความ:</span>
+          <button class="share-btn" title="Facebook">f</button>
+          <button class="share-btn" title="X">𝕏</button>
+          <button class="share-btn" title="Line">L</button>
+          <button class="share-btn" title="Copy link">🔗</button>
+        </div>
+        <div class="tag-cloud">
+          <a href="#">#CEMS</a><a href="#">#SO2</a><a href="#">#NOx</a>
+          <a href="#" data-th="#การระบายมลพิษ" data-en="#Emission">#การระบายมลพิษ</a>
+          <a href="#" data-th="#เฝ้าระวัง" data-en="#Monitoring">#เฝ้าระวัง</a>
+        </div>
+      </article>
+
+      <aside>
+        <div class="aside-card">
+          <h3 data-th="บทความล่าสุด" data-en="Latest articles">บทความล่าสุด</h3>
+          <div class="mini-list">
+            <a class="mini-item" href="#"><div class="mini-thumb g1">💧</div><div><h4 data-th="WPMS คืออะไร ทำไมค่าน้ำทิ้งจึงสำคัญ" data-en="What is WPMS and why wastewater matters">WPMS คืออะไร ทำไมค่าน้ำทิ้งจึงสำคัญ</h4><span data-th="18 เม.ย. 2569" data-en="18 Apr 2026">18 เม.ย. 2569</span></div></a>
+            <a class="mini-item" href="#"><div class="mini-thumb g2">📡</div><div><h4 data-th="POMS กับการติดตามสถานะโรงงานต่อเนื่อง" data-en="POMS and continuous status tracking">POMS กับการติดตามสถานะโรงงานต่อเนื่อง</h4><span data-th="6 เม.ย. 2569" data-en="6 Apr 2026">6 เม.ย. 2569</span></div></a>
+            <a class="mini-item" href="#"><div class="mini-thumb g3">🔔</div><div><h4 data-th="เพิ่มการแจ้งเตือนเมื่อโรงงานหยุดส่งข้อมูล" data-en="Alerts when a factory stops transmitting">เพิ่มการแจ้งเตือนเมื่อโรงงานหยุดส่งข้อมูล</h4><span data-th="28 มี.ค. 2569" data-en="28 Mar 2026">28 มี.ค. 2569</span></div></a>
+          </div>
+        </div>
+        <div class="aside-card" style="position:static;background:linear-gradient(135deg,var(--purple-tint),#fff);">
+          <h3 data-th="ดาวน์โหลดที่เกี่ยวข้อง" data-en="Related downloads">ดาวน์โหลดที่เกี่ยวข้อง</h3>
+          <div class="mini-list">
+            <a class="mini-item" href="ดาวน์โหลด.html"><div class="mini-thumb g4">📄</div><div><h4 data-th="คู่มือการอ่านค่า CEMS (PDF)" data-en="CEMS reading guide (PDF)">คู่มือการอ่านค่า CEMS (PDF)</h4><span>2.4 MB</span></div></a>
+            <a class="mini-item" href="ดาวน์โหลด.html"><div class="mini-thumb g4">📊</div><div><h4 data-th="ตารางค่ามาตรฐานการระบาย (Excel)" data-en="Emission standards table (Excel)">ตารางค่ามาตรฐานการระบาย (Excel)</h4><span>860 KB</span></div></a>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <section class="related">
+    <div class="container">
+      <div class="section-head">
+        <h2 data-th="ข่าวที่เกี่ยวข้อง" data-en="Related news">ข่าวที่เกี่ยวข้อง</h2>
+        <a class="see-all" href="ข่าวสารและกิจกรรม.html" data-th="ดูทั้งหมด →" data-en="See all →">ดูทั้งหมด →</a>
+      </div>
+      <div class="related-grid">
+        <a class="rel-card" href="#"><div class="rel-img g2">📊</div><div class="rel-body"><span class="date" data-th="30 เม.ย. 2569" data-en="30 Apr 2026">30 เม.ย. 2569</span><h3 data-th="รายงานสรุปสถานะการส่งข้อมูลประจำเดือน" data-en="Monthly data transmission report">รายงานสรุปสถานะการส่งข้อมูลประจำเดือน</h3></div></a>
+        <a class="rel-card" href="#"><div class="rel-img g3">🛰️</div><div class="rel-body"><span class="date" data-th="24 เม.ย. 2569" data-en="24 Apr 2026">24 เม.ย. 2569</span><h3 data-th="เปิดใช้งานตัวกรองแผนที่ตามระดับการแจ้งเตือน" data-en="New map filter by alert level">เปิดใช้งานตัวกรองแผนที่ตามระดับการแจ้งเตือน</h3></div></a>
+        <a class="rel-card" href="#"><div class="rel-img g1">💧</div><div class="rel-body"><span class="date" data-th="18 เม.ย. 2569" data-en="18 Apr 2026">18 เม.ย. 2569</span><h3 data-th="WPMS คืออะไร ทำไมค่าน้ำทิ้งจึงสำคัญต่อชุมชน" data-en="What is WPMS and why wastewater matters">WPMS คืออะไร ทำไมค่าน้ำทิ้งจึงสำคัญต่อชุมชน</h3></div></a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <h4 data-th="ศูนย์เฝ้าระวังและควบคุมคุณภาพสิ่งแวดล้อม" data-en="Environment Monitoring and Control Center">ศูนย์เฝ้าระวังและควบคุมคุณภาพสิ่งแวดล้อม</h4>
+          <p data-th="เว็บไซต์แสดงผลข้อมูล CEMS, WPMS และ POMS พร้อมแผนที่โรงงานและข้อมูลย้อนหลังจากฐานข้อมูลกลาง" data-en="Portal for CEMS, WPMS and POMS data with factory map and historical records from the central database.">เว็บไซต์แสดงผลข้อมูล CEMS, WPMS และ POMS พร้อมแผนที่โรงงานและข้อมูลย้อนหลังจากฐานข้อมูลกลาง</p>
+        </div>
+        <div>
+          <h4 data-th="เมนูหลัก" data-en="Main Menu">เมนูหลัก</h4>
+          <a href="EMCC Portal.html#map" data-th="แผนที่โรงงาน" data-en="Factory Map">แผนที่โรงงาน</a>
+          <a href="EMCC Portal.html#news" data-th="ข่าวประกาศ" data-en="Announcements">ข่าวประกาศ</a>
+          <a href="ดาวน์โหลด.html" data-th="ดาวน์โหลด" data-en="Downloads">ดาวน์โหลด</a>
+          <a href="ข่าวสารและกิจกรรม.html" data-th="ข่าวสารและกิจกรรม" data-en="News &amp; Activities">ข่าวสารและกิจกรรม</a>
+          <a href="เกี่ยวกับ.html" data-th="เกี่ยวกับ" data-en="About">เกี่ยวกับ</a>
+        </div>
+        <div>
+          <h4 data-th="ติดต่อ" data-en="Contact">ติดต่อ</h4>
+          <p>📞 Call Center : 02 207 2700</p>
+          <p>✉ info@example.go.th</p>
+          <p data-th="เปิดบริการ จ–ศ 08:30–16:30" data-en="Open Mon–Fri 08:30–16:30">เปิดบริการ จ–ศ 08:30–16:30</p>
+        </div>
+      </div>
+      <div class="footer-bottom" data-th="© 2026 EMCC · Environment Monitoring and Control Center" data-en="© 2026 EMCC · Environment Monitoring and Control Center">© 2026 EMCC · Environment Monitoring and Control Center</div>
+    </div>
+  </footer>
+
+  <script>
+    function setLang(lang, btn) {
+      document.documentElement.lang = lang;
+      document.querySelectorAll('[data-th][data-en]').forEach(el => { el.textContent = el.dataset[lang]; });
+      document.querySelectorAll('.lang button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+    const drawer = document.getElementById('drawer');
+    const drawerBackdrop = document.getElementById('drawerBackdrop');
+    const mobileToggle = document.getElementById('mobileToggle');
+    const drawerClose = document.getElementById('drawerClose');
+    function openDrawer(){ drawer.classList.add('open'); drawerBackdrop.classList.add('open'); mobileToggle.classList.add('open'); document.body.style.overflow='hidden'; }
+    function closeDrawer(){ drawer.classList.remove('open'); drawerBackdrop.classList.remove('open'); mobileToggle.classList.remove('open'); document.body.style.overflow=''; }
+    mobileToggle.addEventListener('click', () => drawer.classList.contains('open') ? closeDrawer() : openDrawer());
+    drawerBackdrop.addEventListener('click', closeDrawer);
+    drawerClose.addEventListener('click', closeDrawer);
+  </script>
+</body>
+</html>
